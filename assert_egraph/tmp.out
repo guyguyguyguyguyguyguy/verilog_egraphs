@@ -1,0 +1,35 @@
+N19
+N10
+(or N2 N16)
+(= (and N22 (or N23 N3)) N22)
+N16
+N1
+(or N10 N1)
+(not (and N11 (= N16 N2)))
+(or N19 N11)
+(and N22 (or N23 N3))
+(or (not N23) N11)
+(not (= N19 N7))
+(or N22 N16)
+N22
+N6
+(or (not (= N19 N7)) N16)
+(and N11 (= N16 N2))
+(or N7 N19)
+(or N23 N3)
+(or N22 N10)
+N7
+(= N19 N7)
+(or N6 N11)
+N3
+(not N23)
+N2
+N11
+(or N16 N11)
+(= N16 N2)
+(or N3 N11)
+N23
+(or N3 N10)
+
+
+(or N16 N2)
