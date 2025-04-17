@@ -43,15 +43,23 @@ define_language! {
 #[derive(Default, Clone)]
 struct GramAn;
 impl Analysis<Grammar> for GramAn {
-   type Data = Option<bool>; // Maybe we can use this help guide grammar changes?
+   type Data = bool;
 
-    fn merge(&mut self, _to: &mut Self::Data, _from: Self::Data) -> DidMerge { DidMerge(false, false) }
+    fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
+        if !*to && from {
+            *to = true;
+            return DidMerge(true, true);
+        }
+
+        DidMerge(true, false)
+    }
 
     fn make(egraph: &mut E, enode: &Grammar) -> Self::Data {
         let _x = |i: &Id| egraph[*i].data;
-        match enode {
-            _ => None
-        }
+        // match enode {
+        //     _ => None
+        // }
+        false
     }
 }
 
@@ -60,12 +68,15 @@ fn main() {
     let e = EGraph::new(GramAn);
     let mut r = Runner::default().with_egraph(e);
 
-    match fs::read_to_string("../sygusResult.out") {
+    match fs::read_to_string("../bv_test.out") {
         Ok(output) => {
             let assertions = parse_assertions(&mut output.as_str());
             for _a in assertions.unwrap() {
                 match _a.parse() {
-                    Ok(a) => drop(r.egraph.add_expr(&a)),
+                    Ok(a) => {
+                        let id = r.egraph.add_expr(&a);
+                        r.egraph.set_analysis_data(id, true);
+                    },
                     Err(e) => panic!("Assertion not supported by grammar with error:\n\t {e}"),
                 }
             }
@@ -73,8 +84,11 @@ fn main() {
         Err(e) => panic!("Could not read file with error:\n\t {e}"),
     }
 
-    println!("Number of classes before rewrites: {}", r.egraph.number_of_classes());
+    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
+    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
+
     r = r.run(&RuleBuilder::all_rules());
-    println!("Number of classes after rewrites: {}", r.egraph.number_of_classes());
-    // println!("{}", r.egraph.classes().map(|c| r.egraph.id_to_expr(c.id)).join("\n"))
+    r.print_report();
+    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
+    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
 }

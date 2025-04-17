@@ -112,29 +112,41 @@ impl RuleBuilder {
             rw!("bvand3"; "(bvand ?a ?a)" => "?a"),
             rw!("bvand5"; "(bvand ?a 0)" => "0"),
             // rw!("bvand6"; "(bvand ?a -1)" => "?a"),
+            rw!("bvand8"; "(bvand ?a (bvor ?a ?b))" => "?a"),
 
             rw!("bvor1"; "(bvor ?a ?b)" => "(bvor ?b ?a)"),
             rw!("bvor2"; "(bvor ?a ?a)" => "?a"),
             rw!("bvor3"; "(bvor ?a 0)" => "?a"),
             rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             // rw!("bvor6"; "(bvor ?a (bvnot ?a))" => "-1"),
+            // rw!("bvor4"; "(or ?a (bvneg ?a))" <=> "-1"),
+            rw!("bvand8"; "(bvor ?a (bvand ?a ?b))" => "?a"),
+
+            rw!("bvxor1"; "(bvxor ?a ?b)" => "(bvxor ?b ?a)"),
+            rw!("bvxor2"; "(bvxor ?a 0)" => "?a"),
+            rw!("bvxor3"; "(bvxor ?a ?a)" => "0"),
 
         ];
 
         // Bitwise AND
         rules.extend([
             rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" <=> "(bvand (bvand ?a ?b) ?c)"), // Don't need this here as we have commutatitivty
+            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))" <=> "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
         ].concat());
 
         // Bitwise OR
         rules.extend([
-            // rw!("bvor4"; "(or ?a (bvneg ?a))" <=> "-1"),
             rw!("bvor4"; "(bvor ?a (bvor ?b ?c))" <=> "(bvor (bvor ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
+            rw!("bvor7"; "(bvor ?a (bvand ?b ?c))" <=> "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
         ].concat());
 
         // Bitwise Not
+        // rules.extend([
+        // ].concat());
+
+        // Bitwise XOR
         rules.extend([
-            rw!("bvnot1"; "(bvnot ?a)" <=> "(bvsub (bvneg ?a) 1)"),
+            rw!("bvxor4"; "(bvxor ?a (bvor ?b ?c))" <=> "(bvxor (bvxor ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
         ].concat());
 
         rules
@@ -153,6 +165,13 @@ impl RuleBuilder {
 
             rw!("bvsub1"; "(bvsub ?a ?a)" => "0"),
             rw!("bvsub2"; "(bvsub ?a (bvneg ?b))" => "(bvadd ?a ?b)"),
+            rw!("bvsub3"; "(bvadd ?a (bvneg ?b))" => "(bvsub ?a ?b)"),  // Don't need this here as we have commutatitivty
+            rw!("bvsub4"; "(bvsub (bvneg ?a) 1)" => "(bvnot ?a)"),
+
+            rw!("bvshl1"; "(bvshl ?a 0)" => "?a"),
+            rw!("bvshl2"; "(bvshl ?a ?b)" => "(bvmul ?a (bvshl (1 ?b))"),
+
+            rw!("bvshr1"; "(bvshr ?a 0)" => "?a"),
         ];
 
         // Addition
@@ -166,9 +185,8 @@ impl RuleBuilder {
         ].concat());
 
         // Substitution
-        rules.extend([
-            rw!("bvsub3"; "(bvsub ?a ?b)" <=> "(bvadd ?a (bvneg ?b))"),  // Don't need this here as we have commutatitivty
-        ].concat());
+        // rules.extend([
+        // ].concat());
 
         // Neg
         // rules.extend([

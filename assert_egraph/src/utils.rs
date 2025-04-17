@@ -108,12 +108,8 @@ pub fn parse_expr(i: &mut &'_ str) -> ModalResult<Expr> {
     .parse_next(i)
 }
 
-fn parse_args(i: &mut &'_ str) -> ModalResult<(String, String)> {
-    separated_pair(
-        parse_name,
-        multispace1,
-        parse_name
-    )
+fn parse_args(i: &mut &'_ str) -> ModalResult<Vec<Expr>> {
+    repeat(1.., ws(parse_expr))
     .parse_next(i)
 }
 
@@ -124,7 +120,7 @@ fn parse_define_fun(i: &mut &'_ str) -> ModalResult<Expr> {
         seq! {
             ws(parse_name),
             ws(s_exp(repeat(0.., ws(s_exp(parse_args))))),
-            ws(parse_name),
+            ws(parse_expr),
             ws(parse_expr)
         }
     )
