@@ -53,10 +53,10 @@ impl Analysis<Grammar> for GramAn {
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         if !*to && from {
             *to = true;
-            return DidMerge(true, true);
+            return DidMerge(true, false);
         }
 
-        DidMerge(true, false)
+        DidMerge(false, false)
     }
 
     fn make(_egraph: &mut E, _enode: &Grammar) -> Self::Data {
