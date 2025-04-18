@@ -1,10 +1,10 @@
-mod utils;
+mod parser;
 mod rules;
 
 use egg::*;
 use std::fs::{File, read_to_string};
 use std::io::prelude::*;
-use utils::parse_assertions;
+use parser::parse_assertions;
 use rules::RuleBuilder;
 use clap::Parser;
 
@@ -69,7 +69,7 @@ impl Analysis<Grammar> for GramAn {
 #[command(version, about, long_about = None)]
 struct Args {
     /// File of assertions to canonicalise
-    #[arg(short, long, default_value="../sygusResult.out")]
+    #[arg(short, long)]
     file: String,
 
     /// Output file
