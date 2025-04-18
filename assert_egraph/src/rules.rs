@@ -13,184 +13,194 @@ impl RuleBuilder {
     }
 
     fn logical_rules() -> Vec<Rewrite<Grammar, GramAn>> {
-        vec![
-            // AND rules
+        let mut rules = vec![];
+
+        // AND rules
+        rules.extend([
             rw!("and1"; "(and ?a ?b)" => "(and ?b ?a)"),
             rw!("and2"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+        ]);
 
-            // OR rules
+        // OR rules
+        rules.extend([
             rw!("or1"; "(or ?a ?b)" => "(or ?b ?a)"),
             rw!("or2"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+        ]);
 
-            // Not rules
+        // Not rules
+        rules.extend([
             rw!("not1"; "(not true)" => "false"),
             rw!("not2"; "(not false)" => "true"),
             rw!("not3"; "(not (not ?a))" => "?a"),
-        ]
+        ]);
+
+        rules
     }
 
     fn signed_comparison_rules() -> Vec<Rewrite<Grammar, GramAn>> {
-        let mut rules = vec![
-            rw!("geq1"; "(>= ?a ?a)" => "true"),
-            rw!("leq1"; "(<= ?a ?a)" => "true"),
-            rw!("gt1"; "(> ?a ?a)" => "false"),
-            rw!("lt1"; "(< ?a ?a)" => "false"),
-        ];
+        let mut rules = vec![];
 
         // Greater than or equal
         rules.extend([
-            rw!("geq2"; "(>= ?a ?b)" <=> "(or (> ?a ?b) (= ?a ?b))"),
-            rw!("geq3"; "(>= ?a ?b)" <=> "(or (< ?b ?a) (= ?a ?b))"),
-            rw!("geq4"; "(>= ?a ?b)" <=> "(not (< ?a ?b))"),
-        ].concat());
+            rw!("geq1"; "(>= ?a ?a)"               => "true"),
+            rw!("geq2"; "(or (> ?a ?b) (= ?a ?b))" => "(>= ?a ?b)"),
+            rw!("geq3"; "(or (< ?b ?a) (= ?a ?b))" => "(>= ?a ?b)"),
+            rw!("geq4"; "(not (< ?a ?b))"          => "(>= ?a ?b)"),
+        ]);
 
         // Less than or equal
         rules.extend([
-            rw!("leq2"; "(<= ?a ?b)" <=> "(or (< ?a ?b) (= ?a ?b))"),
-            rw!("leq3"; "(<= ?a ?b)" <=> "(or (> ?b ?a) (= ?a ?b))"),
-            rw!("leq4"; "(<= ?a ?b)" <=> "(not (> ?a ?b))"),
-        ].concat());
+            rw!("leq1"; "(<= ?a ?a)"               => "true"),
+            rw!("leq2"; "(or (< ?a ?b) (= ?a ?b))" => "(<= ?a ?b)"),
+            rw!("leq3"; "(or (> ?b ?a) (= ?a ?b))" => "(<= ?a ?b)"),
+            rw!("leq4"; "(not (> ?a ?b))"          => "(<= ?a ?b)"),
+        ]);
 
         // Greater than
         rules.extend([
-            rw!("gt2"; "(> ?a ?b)" <=> "(< ?b ?a)"),
-            rw!("gt3"; "(> ?a ?b)" <=> "(<= ?b ?a)"),
-            rw!("gt4"; "(> ?a ?b)" <=> "(>= ?a ?b)"),
-        ].concat());
+            rw!("gt1"; "(> ?a ?a)"  => "false"),
+            rw!("gt2"; "(> ?a ?b)"  => "(< ?b ?a)"),
+            rw!("gt3"; "(<= ?b ?a)" => "(> ?a ?b)"),
+            rw!("gt4"; "(>= ?a ?b)" => "(> ?a ?b)"),
+        ]);
 
         // Less than
         rules.extend([
-            rw!("lt2"; "(< ?a ?b)" <=> "(>= ?b ?a)"),
-            rw!("lt3"; "(< ?a ?b)" <=> "(<= ?a ?b)"),
-        ].concat());
+            rw!("lt1"; "(< ?a ?a)"  => "false"),
+            rw!("lt2"; "(>= ?b ?a)" => "(< ?a ?b)"),
+            rw!("lt3"; "(<= ?a ?b)" => "(< ?a ?b)"),
+        ]);
 
         rules
     }
 
     fn unsigned_comparison_rules() -> Vec<Rewrite<Grammar, GramAn>> {
-        let mut rules = vec![
-            rw!("ugeq1"; "(>=u ?a ?a)" => "true"),
-            rw!("uleq1"; "(<=u ?a ?a)" => "true"),
-            rw!("ugt1"; "(>u ?a ?a)" => "false"),
-            rw!("ult1"; "(<u ?a ?a)" => "false"),
-        ];
+        let mut rules = vec![];
 
         // Unsigned greater than or equal
         rules.extend([
-            rw!("ugeq2"; "(>=u ?a ?b)" <=> "(or (>u ?a ?b) (= ?a ?b))"),
-            rw!("ugeq3"; "(>=u ?a ?b)" <=> "(or (<u ?b ?a) (= ?a ?b))"),
-            rw!("ugeq4"; "(>=u ?a ?b)" <=> "(not (<u ?a ?b))"),
-        ].concat());
+            rw!("ugeq1"; "(>=u ?a ?a)"               => "true"),
+            rw!("ugeq2"; "(or (>u ?a ?b) (= ?a ?b))" => "(>=u ?a ?b)"),
+            rw!("ugeq3"; "(or (<u ?b ?a) (= ?a ?b))" => "(>=u ?a ?b)"),
+            rw!("ugeq4"; "(not (<u ?a ?b))"          => "(>=u ?a ?b)"),
+        ]);
 
         // Unsigned less than or equal
         rules.extend([
-            rw!("uleq2"; "(<=u ?a ?b)" <=> "(or (<u ?a ?b) (= ?a ?b))"),
-            rw!("uleq3"; "(<=u ?a ?b)" <=> "(or (>u ?b ?a) (= ?a ?b))"),
-            rw!("uleq4"; "(<=u ?a ?b)" <=> "(not (>u ?a ?b))"),
-        ].concat());
+            rw!("uleq1"; "(<=u ?a ?a)"               => "true"),
+            rw!("uleq2"; "(or (<u ?a ?b) (= ?a ?b))" => "(<=u ?a ?b)"),
+            rw!("uleq3"; "(or (>u ?b ?a) (= ?a ?b))" => "(<=u ?a ?b)"),
+            rw!("uleq4"; "(not (>u ?a ?b))"          => "(<=u ?a ?b)"),
+        ]);
 
         // Unsigned greater than
         rules.extend([
-            rw!("ugt2"; "(>u ?a ?b)" <=> "(<u ?b ?a)"),
-            rw!("ugt3"; "(>u ?a ?b)" <=> "(<=u ?b ?a)"),
-            rw!("ugt4"; "(>u ?a ?b)" <=> "(>=u ?a ?b)"),
-        ].concat());
+            rw!("ugt1"; "(>u ?a ?a)"  => "false"),
+            rw!("ugt2"; "(>u ?a ?b)"  => "(<u ?b ?a)"),
+            rw!("ugt3"; "(>u ?a ?b)"  => "(<=u ?b ?a)"),
+            rw!("ugt4"; "(>u ?a ?b)"  => "(>=u ?a ?b)"),
+        ]);
 
         // Unsigned less than
         rules.extend([
-            rw!("ult3"; "(<u ?a ?b)" <=> "(>= ?b ?a)"),
-            rw!("ult4"; "(<u ?a ?b)" <=> "(<= ?a ?b)"),
-        ].concat());
+            rw!("ult1"; "(<u ?a ?a)"  => "false"),
+            rw!("ult2"; "(>=u ?b ?a)" => "(<u ?a ?b)"),
+            rw!("ult3"; "(<=u ?a ?b)" => "(<u ?a ?b)"),
+        ]);
 
         rules
     }
 
     fn bitwise_rules() -> Vec<Rewrite<Grammar, GramAn>> {
         let mut rules = vec![
-            rw!("bvand1"; "(bvand ?a ?b)" => "(bvand ?b ?a)"),
-            rw!("bvand2"; "(bvand ?a (bvnot ?a))" => "0"),
-            rw!("bvand3"; "(bvand ?a ?a)" => "?a"),
-            rw!("bvand5"; "(bvand ?a 0)" => "0"),
-            // rw!("bvand6"; "(bvand ?a -1)" => "?a"),
-            rw!("bvand8"; "(bvand ?a (bvor ?a ?b))" => "?a"),
-
-            rw!("bvor1"; "(bvor ?a ?b)" => "(bvor ?b ?a)"),
-            rw!("bvor2"; "(bvor ?a ?a)" => "?a"),
-            rw!("bvor3"; "(bvor ?a 0)" => "?a"),
-            rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
-            // rw!("bvor6"; "(bvor ?a (bvnot ?a))" => "-1"),
-            // rw!("bvor4"; "(or ?a (bvneg ?a))" <=> "-1"),
-            rw!("bvand8"; "(bvor ?a (bvand ?a ?b))" => "?a"),
-
-            rw!("bvxor1"; "(bvxor ?a ?b)" => "(bvxor ?b ?a)"),
-            rw!("bvxor2"; "(bvxor ?a 0)" => "?a"),
-            rw!("bvxor3"; "(bvxor ?a ?a)" => "0"),
-
+            rw!("bvnot1"; "(bvnot (bvnot ?a))" => "?a"),
         ];
 
         // Bitwise AND
         rules.extend([
-            rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" <=> "(bvand (bvand ?a ?b) ?c)"), // Don't need this here as we have commutatitivty
-            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))" <=> "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
+            rw!("bvand1"; "(bvand ?a ?b)"           => "(bvand ?b ?a)"),
+            rw!("bvand2"; "(bvand ?a (bvnot ?a))"   => "0"),
+            rw!("bvand3"; "(bvand ?a ?a)"           => "?a"),
+            rw!("bvand5"; "(bvand ?a 0)"            => "0"),
+            rw!("bvand6"; "(bvand ?a -1)"           => "?a"),
+            rw!("bvand8"; "(bvand ?a (bvor ?a ?b))" => "?a"),
+        ]);
+        // bidirectional AND rules
+        rules.extend([
+            rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" <=> "(bvand (bvand ?a ?b) ?c)"),
+            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))"  <=> "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
         ].concat());
 
         // Bitwise OR
         rules.extend([
-            rw!("bvor4"; "(bvor ?a (bvor ?b ?c))" <=> "(bvor (bvor ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
-            rw!("bvor7"; "(bvor ?a (bvand ?b ?c))" <=> "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
+            rw!("bvor1"; "(bvor ?a ?b)"                               => "(bvor ?b ?a)"),
+            rw!("bvor2"; "(bvor ?a ?a)"                               => "?a"),
+            rw!("bvor3"; "(bvor ?a 0)"                                => "?a"),
+            rw!("bvor4"; "(or ?a (bvneg ?a))"                         => "-1"),
+            rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
+            rw!("bvor6"; "(bvor ?a (bvnot ?a))"                       => "-1"),
+            rw!("bvor7"; "(bvor ?a (bvand ?a ?b))"                    => "?a"),
+            rw!("bvor8"; "(bvor (bvand ?a ?b) (bvand ?a (bvneg ?b)))" => "?a"),
+            rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
+        ]);
+        // bidirectional OR rules
+        rules.extend([
+            rw!("bvor10"; "(bvor ?a (bvand ?b ?c))"  <=> "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
         ].concat());
-
-        // Bitwise Not
-        // rules.extend([
-        // ].concat());
 
         // Bitwise XOR
         rules.extend([
-            rw!("bvxor4"; "(bvxor ?a (bvor ?b ?c))" <=> "(bvxor (bvxor ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
-        ].concat());
+            rw!("bvxor1"; "(bvxor ?a ?b)"             => "(bvxor ?b ?a)"),
+            rw!("bvxor2"; "(bvxor ?a 0)"              => "?a"),
+            rw!("bvxor3"; "(bvxor ?a ?a)"             => "0"),
+            rw!("bvxor4"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
+        ]);
 
         rules
     }
 
     // Arithmetic operators
     fn arithmetic_rules() -> Vec<Rewrite<Grammar, GramAn>> {
-        let mut rules = vec![
-            rw!("bvadd1"; "(bvadd ?a ?b)" => "(bvadd ?b ?a)"),
-            rw!("bvadd3"; "(bvadd ?a 0)" => "?a"),
-            rw!("bvadd4"; "(bvadd ?a (bvneg ?a))" => "0"),
-            rw!("bvadd5"; "(bvadd ?a (bvneg ?b))" => "(bvsub ?a ?b)"),
-
-            rw!("bvmul1"; "(bvmul ?a ?b)" => "(bvmul ?b ?a)"),
-            rw!("bvmul3"; "(bvmul ?a 0)" => "0"),
-
-            rw!("bvsub1"; "(bvsub ?a ?a)" => "0"),
-            rw!("bvsub2"; "(bvsub ?a (bvneg ?b))" => "(bvadd ?a ?b)"),
-            rw!("bvsub3"; "(bvadd ?a (bvneg ?b))" => "(bvsub ?a ?b)"),  // Don't need this here as we have commutatitivty
-            rw!("bvsub4"; "(bvsub (bvneg ?a) 1)" => "(bvnot ?a)"),
-
-            rw!("bvshl1"; "(bvshl ?a 0)" => "?a"),
-            rw!("bvshl2"; "(bvshl ?a ?b)" => "(bvmul ?a (bvshl (1 ?b))"),
-
-            rw!("bvshr1"; "(bvshr ?a 0)" => "?a"),
-        ];
+        let mut rules = vec![];
 
         // Addition
         rules.extend([
-            rw!("bvadd2"; "(bvadd ?a (bvadd ?b ?c))" <=> "(bvadd (bvadd ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
-        ].concat());
+            rw!("bvadd1"; "(bvadd ?a ?b)"            => "(bvadd ?b ?a)"),
+            rw!("bvadd2"; "(bvadd ?a 0)"             => "?a"),
+            rw!("bvadd3"; "(bvadd ?a (bvneg ?a))"    => "0"),
+            rw!("bvadd4"; "(bvadd ?a (bvneg ?b))"    => "(bvsub ?a ?b)"),
+            rw!("bvadd5"; "(bvadd ?a (bvadd ?b ?c))" => "(bvadd (bvadd ?a ?b) ?c)"),
+        ]);
 
         // Multiplication
         rules.extend([
-            rw!("bvmul2"; "(bvmul ?a (bvmul ?b ?c))" <=> "(bvmul (bvmul ?a ?b) ?c)"),  // Don't need this here as we have commutatitivty
-        ].concat());
+            rw!("bvmul1"; "(bvmul ?a ?b)"            => "(bvmul ?b ?a)"),
+            rw!("bvmul2"; "(bvmul ?a 0)"             => "0"),
+            rw!("bvmul3"; "(bvmul ?a (bvmul ?b ?c))" => "(bvmul (bvmul ?a ?b) ?c)"),
+        ]);
 
         // Substitution
-        // rules.extend([
-        // ].concat());
+        rules.extend([
+            rw!("bvsub1"; "(bvsub ?a ?a)"         => "0"),
+            rw!("bvsub2"; "(bvsub ?a (bvneg ?b))" => "(bvadd ?a ?b)"),
+            rw!("bvsub3"; "(bvsub (bvneg ?a) 1)"  => "(bvnot ?a)"),
 
-        // Neg
-        // rules.extend([
-        // ].concat());
+        ]);
+
+        // Left shift
+        rules.extend([
+            rw!("bvshl1"; "(bvshl ?a 0)"             => "?a"),
+            rw!("bvshl2"; "(bvshl ?a ?b)"            => "(bvmul ?a (bvshl 1 ?b))"),
+            rw!("bvshl3"; "(bvshl 0 ?a)"             => "0"),
+            rw!("bvshl4"; "(bvshl (bvand ?a ?b) ?c)" => "(bvand (bvshl ?a ?c) (bvshl ?b ?c))"),
+        ]);
+
+        // Right shift
+        rules.extend([
+            rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
+            rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
+            rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
+        ]);
 
         rules
     }

@@ -1,6 +1,6 @@
 use winnow::{
-    ascii::{digit1, multispace0, multispace1, till_line_ending},
-    combinator::{alt, delimited, preceded, repeat, separated_pair, seq},
+    ascii::{digit1, multispace0,  till_line_ending},
+    combinator::{alt, delimited, preceded, repeat,  seq},
     error::ContextError,
     prelude::*,
     token::take_while,

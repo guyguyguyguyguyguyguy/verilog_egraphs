@@ -71,3 +71,6 @@
 (
 (define-fun inv ((N1 Bool) (N10 Bool) (N16 Bool) (N19 Bool) (N7 Bool)) Bool (or N7 N19))
 )
+(
+(define-fun inv ((N11 Bool) (N16 Bool) (N22 Bool) (N23 Bool) (N3 Bool)) Bool (= N22 (and (or N3 N23 ) N22 )))
+)
