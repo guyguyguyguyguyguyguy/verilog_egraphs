@@ -79,42 +79,41 @@ impl RuleBuilder {
 
         // Unsigned greater than or equal
         rules.extend([
-            rw!("ugeq1"; "(>=u ?a ?a)"               => "true"),
-            rw!("ugeq2"; "(or (>u ?a ?b) (= ?a ?b))" => "(>=u ?a ?b)"),
-            rw!("ugeq3"; "(or (<u ?b ?a) (= ?a ?b))" => "(>=u ?a ?b)"),
-            rw!("ugeq4"; "(not (<u ?a ?b))"          => "(>=u ?a ?b)"),
+            rw!("ugeq1"; "(bvuge ?a ?a)"               => "true"),
+            rw!("ugeq2"; "(or (bvugt ?a ?b) (= ?a ?b))" => "(bvuge ?a ?b)"),
+            rw!("ugeq3"; "(or (bvult ?b ?a) (= ?a ?b))" => "(bvuge ?a ?b)"),
+            rw!("ugeq4"; "(not (bvult ?a ?b))"          => "(bvuge ?a ?b)"),
         ]);
 
         // Unsigned less than or equal
         rules.extend([
-            rw!("uleq1"; "(<=u ?a ?a)"               => "true"),
-            rw!("uleq2"; "(or (<u ?a ?b) (= ?a ?b))" => "(<=u ?a ?b)"),
-            rw!("uleq3"; "(or (>u ?b ?a) (= ?a ?b))" => "(<=u ?a ?b)"),
-            rw!("uleq4"; "(not (>u ?a ?b))"          => "(<=u ?a ?b)"),
+            rw!("uleq1"; "(bvule ?a ?a)"               => "true"),
+            rw!("uleq2"; "(or (bvult ?a ?b) (= ?a ?b))" => "(bvule ?a ?b)"),
+            rw!("uleq3"; "(or (bvugt ?b ?a) (= ?a ?b))" => "(bvule ?a ?b)"),
+            rw!("uleq4"; "(not (bvugt ?a ?b))"          => "(bvule ?a ?b)"),
         ]);
 
         // Unsigned greater than
         rules.extend([
-            rw!("ugt1"; "(>u ?a ?a)"  => "false"),
-            rw!("ugt2"; "(>u ?a ?b)"  => "(<u ?b ?a)"),
-            rw!("ugt3"; "(>u ?a ?b)"  => "(<=u ?b ?a)"),
-            rw!("ugt4"; "(>u ?a ?b)"  => "(>=u ?a ?b)"),
+            rw!("ugt1"; "(bvugt ?a ?a)"  => "false"),
+            rw!("ugt2"; "(bvugt ?a ?b)"  => "(bvult ?b ?a)"),
+            rw!("ugt3"; "(bvugt ?a ?b)"  => "(bvule ?b ?a)"),
+            rw!("ugt4"; "(bvugt ?a ?b)"  => "(bvuge ?a ?b)"),
         ]);
 
         // Unsigned less than
         rules.extend([
-            rw!("ult1"; "(<u ?a ?a)"  => "false"),
-            rw!("ult2"; "(>=u ?b ?a)" => "(<u ?a ?b)"),
-            rw!("ult3"; "(<=u ?a ?b)" => "(<u ?a ?b)"),
+            rw!("ult1"; "(bvult ?a ?a)"  => "false"),
+            rw!("ult2"; "(bvuge ?b ?a)" => "(bvult ?a ?b)"),
+            rw!("ult3"; "(bvule ?a ?b)" => "(bvult ?a ?b)"),
         ]);
 
         rules
     }
 
     fn bitwise_rules() -> Vec<Rewrite<Grammar, GramAn>> {
-        let mut rules = vec![
-            // rw!("bvnot1"; "(bvnot (bvnot ?a))" => "?a"),
-        ];
+        let mut rules = vec![];
+
         // Bitwise AND
         rules.extend([
             rw!("bvand1"; "(bvand ?a ?b)"           => "(bvand ?b ?a)"),
@@ -123,8 +122,10 @@ impl RuleBuilder {
             rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" => "(bvand (bvand ?a ?b) ?c)"),
             rw!("bvand5"; "(bvand ?a 0)"            => "0"),
             rw!("bvand6"; "(bvand ?a -1)"           => "?a"),
-            rw!("bvand8"; "(bvand ?a (bvor ?a ?b))" => "?a"),
-            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),   // Leads to explosions
+            rw!("bvand7"; "(bvand ?a (bvor ?a ?b))" => "?a"),
+            rw!("bvand8"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
+            rw!("bvand9"; "(bvand ?a (bvor ?a ?b))" => "?a"),
+            rw!("bvand10"; "(bvand ?a ?b)" => "(bvnot (bvor (bvnot ?a) (bvnot ?b)))"),
         ]);
 
         // Bitwise OR
@@ -136,7 +137,6 @@ impl RuleBuilder {
             rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             rw!("bvor6"; "(bvor ?a (bvnot ?a))"                       => "-1"),
             rw!("bvor7"; "(bvor ?a (bvand ?a ?b))"                    => "?a"),
-            rw!("bvor7b"; "(bvor ?b (bvand ?a ?b))"                    => "?b"),
             rw!("bvor8"; "(bvor (bvand ?a ?b) (bvand ?a (bvneg ?b)))" => "?a"),
             rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
             rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))" => "(bvor ?a (bvand ?b ?c))"),
@@ -150,12 +150,9 @@ impl RuleBuilder {
             rw!("bvxor4"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
         ]);
 
-        // Additional simplification rules to help with complex expressions
+        // Bitwise NOT
         rules.extend([
-            rw!("simp1"; "(bvand (bvor ?a ?b) (bvor ?a (bvnot ?b)))" => "(bvor ?a (bvand ?b (bvnot ?b)))"),
-            rw!("simp2"; "(bvand (bvor ?a ?b) (bvor ?a (bvnot ?b)))" => "?a"),
-            rw!("simp3"; "(bvand (bvnot ?a) (bvor ?a ?b))" => "(bvand (bvnot ?a) ?b)"),
-            rw!("simp4"; "(bvor (bvnot ?a) (bvand ?a ?b))" => "(bvor (bvnot ?a) ?b)"),
+            rw!("bvnot1"; "(bvnot (bvnot ?a))"             => "?a"),
         ]);
 
         rules
@@ -173,6 +170,8 @@ impl RuleBuilder {
             rw!("bvadd3"; "(bvadd ?a (bvneg ?a))"    => "0"),
             rw!("bvadd4"; "(bvadd ?a (bvneg ?b))"    => "(bvsub ?a ?b)"),
             rw!("bvadd5"; "(bvadd ?a (bvadd ?b ?c))" => "(bvadd (bvadd ?a ?b) ?c)"),
+            rw!("bvadd6"; "(bvadd (bvand ?a ?b) (bvnot ?b))" => "(bvor ?a (bvnot ?b))"),
+            rw!("bvadd7"; "(bvadd (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
         ]);
 
         // Multiplication
@@ -187,7 +186,14 @@ impl RuleBuilder {
             rw!("bvsub1"; "(bvsub ?a ?a)"         => "0"),
             rw!("bvsub2"; "(bvsub ?a (bvneg ?b))" => "(bvadd ?a ?b)"),
             rw!("bvsub3"; "(bvsub (bvneg ?a) 1)"  => "(bvnot ?a)"),
+            rw!("bvsub4"; "(bvsub (bvor ?a ?b) ?b)"  => "(bvand (bvor ?a ?b) (bvnot ?b))"),
+            rw!("bvsub6"; "(bvsub ?a ?b)"  => "(bvneg (bvsub ?b ?a))"),
+            rw!("bvsub7"; "(bvsub ?a (bvadd ?a ?a))"  => "(bvneg ?a)"),
+        ]);
 
+        // Left shift
+        rules.extend([
+            rw!("bvneg1"; "(bvneg (bvneg ?a))"  => "?a"),
         ]);
 
         // Left shift

@@ -3,6 +3,7 @@ mod rules;
 
 use egg::*;
 use std::fs;
+use std::time::Duration;
 use utils::parse_assertions;
 use rules::RuleBuilder;
 use clap::Parser;
@@ -22,10 +23,10 @@ define_language! {
         "<=" = Leq([Id;2]),
         ">" = Gt([Id;2]),
         "<" = Lt([Id;2]),
-        ">=u" = GeqU([Id;2]),
-        "<=u" = LeqU([Id;2]),
-        ">u" = GtU([Id;2]),
-        "<u" = LtU([Id;2]),
+        "bvuge" = GeqU([Id;2]),
+        "bvule" = LeqU([Id;2]),
+        "bvugt" = GtU([Id;2]),
+        "bvult" = LtU([Id;2]),
         "bvand" = BAnd([Id;2]),
         "bvor" = BOr([Id;2]),
         "bvxor" = BxOr([Id;2]),
@@ -74,7 +75,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let e = EGraph::new(GramAn).with_explanations_enabled();
+    let e = EGraph::new(GramAn);
     let mut r = Runner::default().with_egraph(e);
 
     match fs::read_to_string(args.file) {
@@ -94,12 +95,13 @@ fn main() {
     }
 
     println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
 
-    let r1 = RuleBuilder::all_rules().first().unwrap();
-
-    r = r.with_explanations_enabled().with_iter_limit(1).run(&RuleBuilder::all_rules());
+    r = r.with_time_limit(Duration::new(1, 0)).run(&RuleBuilder::all_rules());
     r.print_report();
     println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
     println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
+
+    if let Some(id) = r.egraph.lookup_expr(&"(bvand x y)".parse().unwrap()) {
+        println!("\n It is here: {}", r.egraph.id_to_expr(id));
+    }
 }
