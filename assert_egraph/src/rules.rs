@@ -17,20 +17,20 @@ impl RuleBuilder {
 
         // AND rules
         rules.extend([
-            rw!("and1"; "(and ?a ?b)" => "(and ?b ?a)"),
+            rw!("and1"; "(and ?a ?b)"          => "(and ?b ?a)"),
             rw!("and2"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
         ]);
 
         // OR rules
         rules.extend([
-            rw!("or1"; "(or ?a ?b)" => "(or ?b ?a)"),
+            rw!("or1"; "(or ?a ?b)"         => "(or ?b ?a)"),
             rw!("or2"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
         ]);
 
         // Not rules
         rules.extend([
-            rw!("not1"; "(not true)" => "false"),
-            rw!("not2"; "(not false)" => "true"),
+            rw!("not1"; "(not true)"     => "false"),
+            rw!("not2"; "(not false)"    => "true"),
             rw!("not3"; "(not (not ?a))" => "?a"),
         ]);
 
@@ -113,23 +113,19 @@ impl RuleBuilder {
 
     fn bitwise_rules() -> Vec<Rewrite<Grammar, GramAn>> {
         let mut rules = vec![
-            rw!("bvnot1"; "(bvnot (bvnot ?a))" => "?a"),
+            // rw!("bvnot1"; "(bvnot (bvnot ?a))" => "?a"),
         ];
-
         // Bitwise AND
         rules.extend([
             rw!("bvand1"; "(bvand ?a ?b)"           => "(bvand ?b ?a)"),
             rw!("bvand2"; "(bvand ?a (bvnot ?a))"   => "0"),
             rw!("bvand3"; "(bvand ?a ?a)"           => "?a"),
+            rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" => "(bvand (bvand ?a ?b) ?c)"),
             rw!("bvand5"; "(bvand ?a 0)"            => "0"),
             rw!("bvand6"; "(bvand ?a -1)"           => "?a"),
             rw!("bvand8"; "(bvand ?a (bvor ?a ?b))" => "?a"),
+            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),   // Leads to explosions
         ]);
-        // bidirectional AND rules
-        rules.extend([
-            rw!("bvand4"; "(bvand ?a (bvand ?b ?c))" <=> "(bvand (bvand ?a ?b) ?c)"),
-            rw!("bvand7"; "(bvand ?a (bvor ?b ?c))"  <=> "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
-        ].concat());
 
         // Bitwise OR
         rules.extend([
@@ -140,13 +136,11 @@ impl RuleBuilder {
             rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             rw!("bvor6"; "(bvor ?a (bvnot ?a))"                       => "-1"),
             rw!("bvor7"; "(bvor ?a (bvand ?a ?b))"                    => "?a"),
+            rw!("bvor7b"; "(bvor ?b (bvand ?a ?b))"                    => "?b"),
             rw!("bvor8"; "(bvor (bvand ?a ?b) (bvand ?a (bvneg ?b)))" => "?a"),
             rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
+            rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))" => "(bvor ?a (bvand ?b ?c))"),
         ]);
-        // bidirectional OR rules
-        rules.extend([
-            rw!("bvor10"; "(bvor ?a (bvand ?b ?c))"  <=> "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
-        ].concat());
 
         // Bitwise XOR
         rules.extend([
@@ -156,8 +150,17 @@ impl RuleBuilder {
             rw!("bvxor4"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
         ]);
 
+        // Additional simplification rules to help with complex expressions
+        rules.extend([
+            rw!("simp1"; "(bvand (bvor ?a ?b) (bvor ?a (bvnot ?b)))" => "(bvor ?a (bvand ?b (bvnot ?b)))"),
+            rw!("simp2"; "(bvand (bvor ?a ?b) (bvor ?a (bvnot ?b)))" => "?a"),
+            rw!("simp3"; "(bvand (bvnot ?a) (bvor ?a ?b))" => "(bvand (bvnot ?a) ?b)"),
+            rw!("simp4"; "(bvor (bvnot ?a) (bvand ?a ?b))" => "(bvor (bvnot ?a) ?b)"),
+        ]);
+
         rules
     }
+
 
     // Arithmetic operators
     fn arithmetic_rules() -> Vec<Rewrite<Grammar, GramAn>> {

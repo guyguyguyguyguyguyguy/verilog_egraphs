@@ -52,10 +52,9 @@ impl Analysis<Grammar> for GramAn {
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         if !*to && from {
             *to = true;
-            return DidMerge(true, true);
+            return DidMerge(true, false);
         }
-
-        DidMerge(true, false)
+        DidMerge(false, false)
     }
 
     fn make(_egraph: &mut E, _enode: &Grammar) -> Self::Data {
@@ -75,7 +74,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let e = EGraph::new(GramAn);
+    let e = EGraph::new(GramAn).with_explanations_enabled();
     let mut r = Runner::default().with_egraph(e);
 
     match fs::read_to_string(args.file) {
@@ -94,12 +93,13 @@ fn main() {
         Err(e) => panic!("Could not read file with error:\n\t {e}"),
     }
 
-    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
+    println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
     println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
 
-    r = r.with_node_limit(10_000).run(&RuleBuilder::all_rules());
+    let r1 = RuleBuilder::all_rules().first().unwrap();
+
+    r = r.with_explanations_enabled().with_iter_limit(1).run(&RuleBuilder::all_rules());
     r.print_report();
     println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
     println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
-
 }
