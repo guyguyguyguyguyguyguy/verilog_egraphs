@@ -2,7 +2,8 @@ mod utils;
 mod rules;
 
 use egg::*;
-use std::fs;
+use std::fs::{File, read_to_string};
+use std::io::prelude::*;
 use utils::parse_assertions;
 use rules::RuleBuilder;
 use clap::Parser;
@@ -68,17 +69,21 @@ impl Analysis<Grammar> for GramAn {
 #[command(version, about, long_about = None)]
 struct Args {
     /// File of assertions to canonicalise
-    #[arg(short, long, default_value="../bv_test.out")]
+    #[arg(short, long, default_value="../sygusResult.out")]
     file: String,
+
+    /// Output file
+    #[arg(short, long, default_value="../assertionOutput.out")]
+    output: String,
 }
 
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let args = Args::parse();
     let e = EGraph::new(GramAn);
     let mut r = Runner::default().with_egraph(e);
 
-    match fs::read_to_string(args.file) {
+    match read_to_string(args.file) {
         Ok(output) => {
             let assertions = parse_assertions(&mut output.as_str());
             for _a in assertions.unwrap() {
@@ -94,12 +99,10 @@ fn main() {
         Err(e) => panic!("Could not read file with error:\n\t {e}"),
     }
 
-    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
-
     r = r.with_node_limit(10_000).run(&RuleBuilder::all_rules());
-    r.print_report();
-    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
 
+    let unique_assertions = r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n");
+    let mut file = File::create(args.output)?;
+    file.write_all(unique_assertions.as_bytes().as_ref())?;
+    Ok(())
 }
