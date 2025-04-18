@@ -68,7 +68,7 @@ impl Analysis<Grammar> for GramAn {
 #[command(version, about, long_about = None)]
 struct Args {
     /// File of assertions to canonicalise
-    #[arg(short, long, default_value="../bv_test.out")]
+    #[arg(short, long, default_value="../tests/bvor_test.out")]
     file: String,
 }
 
@@ -96,7 +96,7 @@ fn main() {
 
     println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
 
-    r = r.with_time_limit(Duration::new(1, 0)).run(&RuleBuilder::all_rules());
+    r = r.with_time_limit(Duration::new(3, 0)).run(&RuleBuilder::all_rules());
     r.print_report();
     println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
     println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));

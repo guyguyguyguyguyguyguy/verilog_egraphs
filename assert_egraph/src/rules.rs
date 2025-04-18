@@ -133,13 +133,15 @@ impl RuleBuilder {
             rw!("bvor1"; "(bvor ?a ?b)"                               => "(bvor ?b ?a)"),
             rw!("bvor2"; "(bvor ?a ?a)"                               => "?a"),
             rw!("bvor3"; "(bvor ?a 0)"                                => "?a"),
-            rw!("bvor4"; "(or ?a (bvneg ?a))"                         => "-1"),
+            rw!("bvor11"; "(bvor ?a -1)"                              => "-1"),
+            rw!("bvor4"; "(or ?a (bvnot ?a))"                         => "-1"),
             rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             rw!("bvor6"; "(bvor ?a (bvnot ?a))"                       => "-1"),
             rw!("bvor7"; "(bvor ?a (bvand ?a ?b))"                    => "?a"),
-            rw!("bvor8"; "(bvor (bvand ?a ?b) (bvand ?a (bvneg ?b)))" => "?a"),
+            rw!("bvor8"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
-            rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))" => "(bvor ?a (bvand ?b ?c))"),
+            rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))"         => "(bvor ?a (bvand ?b ?c))"),
+            rw!("bvor12"; "(bvor (bvxor ?a ?b) ?b)"                   => "(bvor ?a ?b)"),
         ]);
 
         // Bitwise XOR
@@ -147,8 +149,17 @@ impl RuleBuilder {
             rw!("bvxor1"; "(bvxor ?a ?b)"             => "(bvxor ?b ?a)"),
             rw!("bvxor2"; "(bvxor ?a 0)"              => "?a"),
             rw!("bvxor3"; "(bvxor ?a ?a)"             => "0"),
-            rw!("bvxor4"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
+            rw!("bvxor4"; "(bvxor ?a -1)"             => "(bvnot ?a)"),
+            rw!("bvxor5"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
+            rw!("bvxor6"; "(bvxor ?a (bvnot ?a))"     => "-1"),
+            rw!("bvxor9"; "(bvxor (bvnot ?a) ?b))"     => "(bvnot (bvxor ?a ?b))"),
+            rw!("bvxor10"; "(bvxor (bvnot ?a) ?b))"     => "(bvxor ?a (bvnot ?b))"),
+            rw!("bvxor11"; "(bvxor (bvand ?a ?b) (bvand ?a (bvnot ?b)))"     => "?a"),
         ]);
+        rules.extend([
+            rw!("bvxor7"; "(bvxor ?a ?b)"     <=> "(bvor (bvand ?a (bvnot ?b)) (bvand (bvnot ?a) ?b)))"),
+            rw!("bvxor8"; "(bvxor ?a ?b)"     <=> "(bvand (bvor ?a ?b) (bvnot (bvand ?a ?b)))"),
+        ].concat());
 
         // Bitwise NOT
         rules.extend([
@@ -167,23 +178,20 @@ impl RuleBuilder {
         rules.extend([
             rw!("bvadd1"; "(bvadd ?a ?b)"            => "(bvadd ?b ?a)"),
             rw!("bvadd2"; "(bvadd ?a 0)"             => "?a"),
+            rw!("bvadd8"; "(bvadd ?a (bvnot ?a))"    => "-1"),
             rw!("bvadd3"; "(bvadd ?a (bvneg ?a))"    => "0"),
             rw!("bvadd4"; "(bvadd ?a (bvneg ?b))"    => "(bvsub ?a ?b)"),
             rw!("bvadd5"; "(bvadd ?a (bvadd ?b ?c))" => "(bvadd (bvadd ?a ?b) ?c)"),
             rw!("bvadd6"; "(bvadd (bvand ?a ?b) (bvnot ?b))" => "(bvor ?a (bvnot ?b))"),
             rw!("bvadd7"; "(bvadd (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
-        ]);
-
-        // Multiplication
-        rules.extend([
-            rw!("bvmul1"; "(bvmul ?a ?b)"            => "(bvmul ?b ?a)"),
-            rw!("bvmul2"; "(bvmul ?a 0)"             => "0"),
-            rw!("bvmul3"; "(bvmul ?a (bvmul ?b ?c))" => "(bvmul (bvmul ?a ?b) ?c)"),
+            rw!("bvadd10"; "(bvadd (bvshl (bvand ?a ?b) ?b) (bvxor ?a ?b))" => "(bvadd ?a ?b)"),
         ]);
 
         // Substitution
         rules.extend([
+            rw!("bvsub8"; "(bvsub ?a 0)"         => "?a"),
             rw!("bvsub1"; "(bvsub ?a ?a)"         => "0"),
+            rw!("bvsub9"; "(bvsub -1 ?a)"         => "(bvnot ?a)"),
             rw!("bvsub2"; "(bvsub ?a (bvneg ?b))" => "(bvadd ?a ?b)"),
             rw!("bvsub3"; "(bvsub (bvneg ?a) 1)"  => "(bvnot ?a)"),
             rw!("bvsub4"; "(bvsub (bvor ?a ?b) ?b)"  => "(bvand (bvor ?a ?b) (bvnot ?b))"),
@@ -191,25 +199,37 @@ impl RuleBuilder {
             rw!("bvsub7"; "(bvsub ?a (bvadd ?a ?a))"  => "(bvneg ?a)"),
         ]);
 
-        // Left shift
+        // Neg shift
         rules.extend([
             rw!("bvneg1"; "(bvneg (bvneg ?a))"  => "?a"),
+            rw!("bvneg2"; "(bvneg ?a)"  => "(bvsub 0 ?a)"),
         ]);
 
-        // Left shift
+        // Multiplication
         rules.extend([
-            rw!("bvshl1"; "(bvshl ?a 0)"             => "?a"),
-            rw!("bvshl2"; "(bvshl ?a ?b)"            => "(bvmul ?a (bvshl 1 ?b))"),
-            rw!("bvshl3"; "(bvshl 0 ?a)"             => "0"),
-            rw!("bvshl4"; "(bvshl (bvand ?a ?b) ?c)" => "(bvand (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("bvmul1"; "(bvmul ?a ?b)"            => "(bvmul ?b ?a)"),
+            rw!("bvmul2"; "(bvmul ?a 0)"             => "0"),
+            rw!("bvmul3"; "(bvmul ?a 1)"             => "?a"),
+            rw!("bvmul4"; "(bvmul ?a (bvmul ?b ?c))" => "(bvmul (bvmul ?a ?b) ?c)"),
+            rw!("bvmul5"; "(bvmul ?a -1)"            => "(bvneg ?a)"),
+            rw!("bvmul6"; "(bvadd (bvmul ?a ?b) ?a)" => "(bvmul ?a (bvadd ?b 1)))"),
         ]);
 
-        // Right shift
-        rules.extend([
-            rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
-            rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
-            rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
-        ]);
+        // // Left shift
+        // rules.extend([
+        //     rw!("bvshl1"; "(bvshl ?a 0)"             => "?a"),
+        //     rw!("bvshl2"; "(bvshl ?a ?b)"            => "(bvmul ?a (bvshl 1 ?b))"),
+        //     rw!("bvshl3"; "(bvshl 0 ?a)"             => "0"),
+        //     rw!("bvshl4"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
+        //     rw!("bvshl5"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
+        // ]);
+
+        // // Right shift
+        // rules.extend([
+        //     rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
+        //     rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
+        //     rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
+        // ]);
 
         rules
     }

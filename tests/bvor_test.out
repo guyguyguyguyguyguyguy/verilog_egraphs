@@ -1,0 +1,351 @@
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x y))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvand y (bvnot x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvnot x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvsub y (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvsub y (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvsub (bvor x y) x)))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvand x (bvnot y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvnot y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvsub x (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvsub (bvor x y) y)))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvand (bvnot x) (bvnot y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvsub (bvor x (bvnot y)) x)))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvsub (bvor y (bvnot x)) y)))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvnot (bvor x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvnot (bvor x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvneg (bvsub y (bvadd y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvadd x (bvand y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvadd x (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvand y (bvnot (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvnot (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvneg x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvadd x (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvneg y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvadd y (bvand x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvadd x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvmul x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvsub x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvadd x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvsub x (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvmul x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvsub y x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvadd y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand x (bvmul y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvneg x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvneg x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvneg y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvneg y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvadd y (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvadd x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvadd x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvmul x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvmul x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvsub x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvsub x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvadd x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvadd x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvand y (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvmul x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvmul x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvsub y x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvsub y x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvadd y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvadd y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvand y (bvmul y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvor y (bvmul y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvand y (bvsub (bvor x y) x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand y (bvsub (bvor x y) x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvsub (bvor x y) x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvor y (bvsub (bvor x y) y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd x (bvand (bvnot x) (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvand (bvnot x) (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor x (bvsub (bvor x y) (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvneg (bvsub x (bvadd x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvnot (bvor y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvnot (bvor y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvand x (bvnot (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvnot (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvneg x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvadd x (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvneg y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvadd x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvmul x x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvsub x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvadd x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvand x (bvsub x (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvsub x (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvmul x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvsub y x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvadd y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvor x (bvmul y y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvadd x (bvand y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvadd y (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvadd x (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvand x (bvsub (bvor x y) y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand x (bvsub (bvor x y) y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvadd y (bvand x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvadd y (bvand (bvnot y) (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvand (bvnot y) (bvor x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvor y (bvsub (bvor x y) (bvand x y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvand (bvor x y) (bvadd x (bvnot x))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvand (bvor x y) (bvadd y (bvnot y))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvadd x (bvnot (bvadd x (bvor x y))))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvadd x (bvsub (bvnot x) (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvadd y (bvnot (bvadd y (bvor x y))))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvadd y (bvsub (bvnot y) (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvand (bvnot x) (bvnot (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvand (bvnot x) (bvor x (bvnot y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (let ((_let_1 (bvnot x))) (bvnot (bvsub _let_1 (bvand y _let_1)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvsub (bvnot x) (bvsub y (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvand (bvnot y) (bvnot (bvor x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (let ((_let_1 (bvnot y))) (bvnot (bvsub _let_1 (bvand x _let_1)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvsub (bvnot y) (bvsub x (bvand x y)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvand (bvnot y) (bvor y (bvnot x)))))
+)
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvnot (bvadd (bvand x y) (bvnot (bvadd x y)))))
+)
