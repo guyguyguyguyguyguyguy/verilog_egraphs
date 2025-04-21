@@ -1,0 +1,3 @@
+(
+(define-fun f ((x (_ BitVec 64)) (y (_ BitVec 64))) (_ BitVec 64) (bvand (bvadd x y) (bvadd x y)))
+)

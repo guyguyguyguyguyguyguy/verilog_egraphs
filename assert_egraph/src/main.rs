@@ -33,12 +33,15 @@ define_language! {
         "bvadd" = Add([Id;2]),
         "bvsub" = Minus([Id;2]),
         "bvmul" = Mul([Id;2]),
-        "bvshl" = Bvshl([Id;2]),
-        "bvshr" = Bvshr([Id;2]),
 
         "not" = Not(Id),
         "bvneg" = Neg(Id),
         "bvnot" = BNot(Id),
+
+        // Other for rewriting, need to test if needed
+        "bvshl" = Bvshl([Id;2]),
+        "bvshr" = Bvshr([Id;2]),
+        "mux" = Mux([Id;3]),
 
         Bool(Symbol),
         BitVec(Symbol),
@@ -68,7 +71,7 @@ impl Analysis<Grammar> for GramAn {
 #[command(version, about, long_about = None)]
 struct Args {
     /// File of assertions to canonicalise
-    #[arg(short, long, default_value="../tests/bvor_test.out")]
+    #[arg(short, long, default_value="../tests/bvadd_test.out")]
     file: String,
 }
 
@@ -96,12 +99,8 @@ fn main() {
 
     println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
 
-    r = r.with_time_limit(Duration::new(3, 0)).run(&RuleBuilder::all_rules());
+    r = r.with_time_limit(Duration::new(18, 0)).with_node_limit(100_000).run(&RuleBuilder::all_rules());
     r.print_report();
     println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
     println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
-
-    if let Some(id) = r.egraph.lookup_expr(&"(bvand x y)".parse().unwrap()) {
-        println!("\n It is here: {}", r.egraph.id_to_expr(id));
-    }
 }

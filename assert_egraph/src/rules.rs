@@ -1,14 +1,31 @@
-use egg::{Rewrite, rewrite as rw};
+use egg::{
+        Rewrite,
+        Id,
+        EGraph,
+        Subst,
+        Symbol,
+        rewrite as rw
+};
 use crate::{GramAn, Grammar};
-
 
 pub struct RuleBuilder;
 
 impl RuleBuilder {
     fn eq_rules() -> Vec<Rewrite<Grammar, GramAn>> {
         vec![
-            rw!("eq1"; "(= ?a ?b)" => "(= ?b ?a)"),
-            rw!("eq2"; "(= ?a ?a)" => "true"),
+            rw!("eq0"; "(= ?a ?b)" => "(= ?b ?a)"),
+            rw!("eq1"; "(= ?a ?a)" => "true"),
+            rw!("eq2"; "(= ?a (not ?a))" => "false"),
+
+            // NOTE: These are for bitvec, do we need to seperate equivalence for bitvec and for boolean?
+            // rw!("eq2"; "(= ?a (bvnot ?a))" => "false"),
+            // rw!("eq3"; "(= ?a (bvor ?a ?b))" => "false" if Self::is_not_equal("?a","?b")),
+            // rw!("eq4"; "(= ?a (bvadd ?a ?a))" => "false" if Self::is_not_zero("?a")),
+
+            // Add back in
+            // rw!("eq5"; "(= (bvxor ?a ?b) ?c)" => "(= ?b (bvxor ?c ?a))"),
+            // rw!("eq6"; "(= (bvxor ?a ?b) ?c)" => "(= ?a (bvxor ?c ?b))"),
+            // rw!("eq7"; "(= ?a (bvxor ?b ?c))" => "(= (bvxor ?a ?c) ?b)"),
         ]
     }
 
@@ -17,21 +34,21 @@ impl RuleBuilder {
 
         // AND rules
         rules.extend([
-            rw!("and1"; "(and ?a ?b)"          => "(and ?b ?a)"),
-            rw!("and2"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+            rw!("and0"; "(and ?a ?b)"          => "(and ?b ?a)"),
+            rw!("and1"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
         ]);
 
         // OR rules
         rules.extend([
-            rw!("or1"; "(or ?a ?b)"         => "(or ?b ?a)"),
-            rw!("or2"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+            rw!("or0"; "(or ?a ?b)"         => "(or ?b ?a)"),
+            rw!("or1"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
         ]);
 
         // Not rules
         rules.extend([
-            rw!("not1"; "(not true)"     => "false"),
-            rw!("not2"; "(not false)"    => "true"),
-            rw!("not3"; "(not (not ?a))" => "?a"),
+            rw!("not0"; "(not true)"     => "false"),
+            rw!("not1"; "(not false)"    => "true"),
+            rw!("not2"; "(not (not ?a))" => "?a"),
         ]);
 
         rules
@@ -42,33 +59,33 @@ impl RuleBuilder {
 
         // Greater than or equal
         rules.extend([
-            rw!("geq1"; "(>= ?a ?a)"               => "true"),
-            rw!("geq2"; "(or (> ?a ?b) (= ?a ?b))" => "(>= ?a ?b)"),
-            rw!("geq3"; "(or (< ?b ?a) (= ?a ?b))" => "(>= ?a ?b)"),
-            rw!("geq4"; "(not (< ?a ?b))"          => "(>= ?a ?b)"),
+            rw!("geq1"; "(bvsge ?a ?a)"               => "true"),
+            rw!("geq2"; "(or (bvsgt ?a ?b) (= ?a ?b))" => "(bvsge ?a ?b)"),
+            rw!("geq3"; "(or (bvslt ?b ?a) (= ?a ?b))" => "(bvsge ?a ?b)"),
+            rw!("geq4"; "(not (bvslt ?a ?b))"          => "(bvsge ?a ?b)"),
         ]);
 
         // Less than or equal
         rules.extend([
-            rw!("leq1"; "(<= ?a ?a)"               => "true"),
-            rw!("leq2"; "(or (< ?a ?b) (= ?a ?b))" => "(<= ?a ?b)"),
-            rw!("leq3"; "(or (> ?b ?a) (= ?a ?b))" => "(<= ?a ?b)"),
-            rw!("leq4"; "(not (> ?a ?b))"          => "(<= ?a ?b)"),
+            rw!("leq1"; "(bvsle ?a ?a)"               => "true"),
+            rw!("leq2"; "(or (bvsle ?a ?b) (= ?a ?b))" => "(bvsle ?a ?b)"),
+            rw!("leq3"; "(or (bvsgt ?b ?a) (= ?a ?b))" => "(bvsle ?a ?b)"),
+            rw!("leq4"; "(not (bvsgt ?a ?b))"          => "(bvsle ?a ?b)"),
         ]);
 
         // Greater than
         rules.extend([
-            rw!("gt1"; "(> ?a ?a)"  => "false"),
-            rw!("gt2"; "(> ?a ?b)"  => "(< ?b ?a)"),
-            rw!("gt3"; "(<= ?b ?a)" => "(> ?a ?b)"),
-            rw!("gt4"; "(>= ?a ?b)" => "(> ?a ?b)"),
+            rw!("gt1"; "(bvsgt ?a ?a)"  => "false"),
+            rw!("gt2"; "(bvsgt ?a ?b)"  => "(bvslt ?b ?a)"),
+            rw!("gt3"; "(bvsle ?b ?a)" => "(bvsgt ?a ?b)"),
+            rw!("gt4"; "(bvsge ?a ?b)" => "(bvsgt ?a ?b)"),
         ]);
 
         // Less than
         rules.extend([
-            rw!("lt1"; "(< ?a ?a)"  => "false"),
-            rw!("lt2"; "(>= ?b ?a)" => "(< ?a ?b)"),
-            rw!("lt3"; "(<= ?a ?b)" => "(< ?a ?b)"),
+            rw!("lt1"; "(bvslt ?a ?a)"  => "false"),
+            rw!("lt2"; "(bvsge ?b ?a)" => "(bvslt ?a ?b)"),
+            rw!("lt3"; "(bvsle ?a ?b)" => "(bvslt ?a ?b)"),
         ]);
 
         rules
@@ -134,7 +151,7 @@ impl RuleBuilder {
             rw!("bvor2"; "(bvor ?a ?a)"                               => "?a"),
             rw!("bvor3"; "(bvor ?a 0)"                                => "?a"),
             rw!("bvor11"; "(bvor ?a -1)"                              => "-1"),
-            rw!("bvor4"; "(or ?a (bvnot ?a))"                         => "-1"),
+            rw!("bvor4"; "(bvor ?a (bvnot ?a))"                         => "-1"),
             rw!("bvor5"; "(bvor (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
             rw!("bvor6"; "(bvor ?a (bvnot ?a))"                       => "-1"),
             rw!("bvor7"; "(bvor ?a (bvand ?a ?b))"                    => "?a"),
@@ -142,6 +159,8 @@ impl RuleBuilder {
             rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
             rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))"         => "(bvor ?a (bvand ?b ?c))"),
             rw!("bvor12"; "(bvor (bvxor ?a ?b) ?b)"                   => "(bvor ?a ?b)"),
+            rw!("bvor13"; "(bvor (bvnot ?a) ?b)"                   => "(bvnot (bvor ?a ?b))"),
+            rw!("bvor14"; "(bvor (bvnot ?a) ?b)"                   => "(bvor ?a (bvnot ?b))"),
         ]);
 
         // Bitwise XOR
@@ -213,26 +232,106 @@ impl RuleBuilder {
             rw!("bvmul4"; "(bvmul ?a (bvmul ?b ?c))" => "(bvmul (bvmul ?a ?b) ?c)"),
             rw!("bvmul5"; "(bvmul ?a -1)"            => "(bvneg ?a)"),
             rw!("bvmul6"; "(bvadd (bvmul ?a ?b) ?a)" => "(bvmul ?a (bvadd ?b 1)))"),
+            rw!("bvmul7"; "(bvmul ?a -1)"             => "(bvneg ?a)"),
         ]);
 
-        // // Left shift
-        // rules.extend([
-        //     rw!("bvshl1"; "(bvshl ?a 0)"             => "?a"),
-        //     rw!("bvshl2"; "(bvshl ?a ?b)"            => "(bvmul ?a (bvshl 1 ?b))"),
-        //     rw!("bvshl3"; "(bvshl 0 ?a)"             => "0"),
-        //     rw!("bvshl4"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
-        //     rw!("bvshl5"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
-        // ]);
+        // Left shift
+        rules.extend([
+            rw!("bvshl1"; "(bvshl ?a 0)"             => "?a"),
+            rw!("bvshl2"; "(bvshl ?a ?b)"            => "(bvmul ?a (bvshl 1 ?b))"),
+            rw!("bvshl3"; "(bvshl 0 ?a)"             => "0"),
+            rw!("bvshl4"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("bvshl5"; "(bvshl (bvor ?a ?b) ?c)"  => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("bvshl6"; "(bvshl ?a 1)"             => "(bvadd ?a ?a)"),
+            rw!("bvshl7"; "(bvshl ?a 1)"             => "(bvmul ?a 2)"),
+        ]);
 
-        // // Right shift
-        // rules.extend([
-        //     rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
-        //     rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
-        //     rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
-        // ]);
+        // Right shift
+        rules.extend([
+            rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
+            rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
+            rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
+        ]);
 
         rules
     }
+
+    pub fn other_bitvec() -> Vec<Rewrite<Grammar, GramAn>> {
+        let mut rules = vec![];
+
+        // Multiplexer
+        rules.extend([
+            rw!("mux1"; "(mux 0 ?a ?b)"                                         => "?b"),
+            rw!("mux2"; "(mux -1 ?a ?b)"                                        => "?a"),
+            rw!("mux3"; "(mux ?a ?a (bvnot ?a))"                                => "-1"),
+            rw!("mux4"; "(mux ?a (bvnot ?a) ?a)"                                => "0"),
+            rw!("mux5"; "(mux ?a ?b (mux ?a ?c ?d))"                           => "(mux ?a ?b ?d)"),
+            rw!("mux6"; "(mux ?a (mux ?a ?b ?c) ?d)"                          => "(mux ?a ?b ?d)"),
+            rw!("mux7"; "(mux ?a ?b ?c)"                                        => "(bvor (bvand ?a ?b) (bvand (bvnot ?a) ?c))"),
+            rw!("mux8"; "(bvor (bvand (bvnot ?a) ?b) (bvand ?a ?c))"            => "(mux ?a ?c ?b)"),
+        ]);
+
+        // Misc
+        rules.extend([
+            rw!("mask"; "(bvand (bvxor ?a ?b) ?b)" => "(bvand (bvnot ?a) ?b)"),
+            rw!("add_op"; "(bvadd (bvand ?a ?b) (bvor ?a ?b))" => "(bvadd ?a ?b)"),
+            rw!("xor_op"; "(bvxor (bvand ?a ?b) (bvor ?a ?b))" => "(bvxor ?a ?b)"),
+            rw!("or_op"; "(bvor (bvand ?a ?b) (bvor ?a ?b))" => "(bvor ?a ?b)"),
+            rw!("and_op"; "(bvand (bvand ?a ?b) (bvor ?a ?b))" => "(bvand ?a ?b)"),
+            rw!("sub_op"; "(bvsub (bvadd ?a ?b) (bvor ?a ?b))" => "(bvand ?a ?b)"),
+        ]);
+        rules.extend([
+            rw!("dmorgan"; "(bvnot (bvand ?a ?b))" <=> "(bvor (bvnot ?a) (bvnot ?b))"),
+        ].concat());
+
+
+        // Special
+        rules.extend([
+            rw!("spec1"; "(bvand ?a (bvnot ?b))" => "(bvxor (bvand ?a ?b) ?a)"),
+            rw!("spec2"; "(bvsub (bvadd ?a ?b) (bvxor ?a ?b))" => "(bvshl (bvand ?a ?b) 1)"),
+            rw!("spec3"; "(bvsub (bvadd ?a ?b) (bvshl (bvand  ?a ?b) 1))" => "(bvxor ?a ?b)"),
+        ]);
+
+        rules
+    }
+
+
+    pub fn dist_bitvec() -> Vec<Rewrite<Grammar, GramAn>> {
+        vec![
+            rw!("add_neg"; "(bvneg (bvadd ?a ?b))" => "(bvsub (bvneg ?a) ?b)"),
+            rw!("and_or"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
+            rw!("or_and"; "(bvor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvor ?a ?c) ?b))"),
+            rw!("and_xor"; "(bvand ?a (bvxor ?b ?c))" => "(bvxor (bvand ?a ?b) (bvand ?a ?c))"),
+            rw!("xor_and"; "(bvxor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvxor ?a ?c) ?b))"),
+            rw!("or_and2"; "(bvor ?a (bvand ?b ?c))" => "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
+            rw!("and_or2"; "(bvand (bvor ?a ?b) (bvor ?c ?b))" => "(bvor (bvand ?a ?c) ?b)"),
+            rw!("mul_add"; "(bvmul ?a (bvadd ?b ?c))" => "(bvadd (bvmul ?a ?b) (bvmul ?a ?c))"),
+            rw!("add_mul"; "(bvadd (bvmul ?a ?b) (bvmul ?c ?b))" => "(bvmul (bvadd ?a ?c) ?b)"),
+            rw!("mul_sub"; "(bvmul ?a (bvsub ?b ?c))" => "(bvsub (bvmul ?a ?b) (bvmul ?a ?c))"),
+            rw!("sub_mul"; "(bvsub (bvmul ?a ?b) (bvmul ?c ?b))" => "(bvmul (bvsub ?a ?c) ?b)"),
+
+            rw!("shl_or"; "(bvshl (bvor ?a ?b) ?c)" => "(bvor (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("or_shl"; "(bvor (bvshl ?a ?b) (bvshl ?c ?b))" => "(bvshl (bvor ?a ?c) ?b)"),
+            rw!("shl_and"; "(bvshl (bvand ?a ?b) ?c)" => "(bvand (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("and_shl"; "(bvand (bvshl ?a ?b) (bvshl ?c ?b))" => "(bvshl (bvand ?a ?c) ?b)"),
+            rw!("shl_xor"; "(bvshl (bvxor ?a ?b) ?c)" => "(bvxor (bvshl ?a ?c) (bvshl ?b ?c))"),
+            rw!("xor_shl"; "(bvxor (bvshl ?a ?b) (bvshl ?c ?b))" => "(bvshl (bvxor ?a ?c) ?b)"),
+        ]
+    }
+
+
+    // fn is_not_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut EGraph<Grammar, GramAn>, Id, &Subst) -> bool {
+    //     let var1 = var.parse().unwrap();
+    //     let var2 = var2.parse().unwrap();
+    //     move |_egraph, _, subst| subst[var1] != subst[var2]
+    // }
+
+    // fn is_not_zero(var: &'static str,) -> impl Fn(&mut EGraph<Grammar, GramAn>, Id, &Subst) -> bool {
+    //     let var = var.parse().unwrap();
+    //     let zero = Grammar::BitVec(Symbol::from("0"));
+    //     move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
+    // }
+
 
     // Collect all rules
     pub fn all_rules() -> Vec<Rewrite<Grammar, GramAn>> {
@@ -243,6 +342,8 @@ impl RuleBuilder {
             Self::unsigned_comparison_rules(),
             Self::bitwise_rules(),
             Self::arithmetic_rules(),
+            Self::other_bitvec(),
+            Self::dist_bitvec(),
         ];
 
         rule_sets.into_iter().flatten().collect()
