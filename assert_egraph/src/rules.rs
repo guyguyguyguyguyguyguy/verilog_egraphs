@@ -1,17 +1,10 @@
-use egg::{
-        Rewrite,
-        Id,
-        EGraph,
-        Subst,
-        Symbol,
-        rewrite as rw
-};
-use crate::{GramAn, Grammar};
+use egg::{Rewrite, rewrite as rw};
+use crate::{GrammarAnalysis, Grammar};
 
 pub struct RuleBuilder;
 
 impl RuleBuilder {
-    fn eq_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn eq_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         vec![
             rw!("eq0"; "(= ?a ?b)" => "(= ?b ?a)"),
             rw!("eq1"; "(= ?a ?a)" => "true"),
@@ -29,7 +22,7 @@ impl RuleBuilder {
         ]
     }
 
-    fn logical_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn logical_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // AND rules
@@ -54,7 +47,7 @@ impl RuleBuilder {
         rules
     }
 
-    fn signed_comparison_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn signed_comparison_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // Greater than or equal
@@ -80,7 +73,7 @@ impl RuleBuilder {
         rules
     }
 
-    fn unsigned_comparison_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn unsigned_comparison_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // Unsigned greater than or equal
@@ -112,7 +105,7 @@ impl RuleBuilder {
         rules
     }
 
-    fn bitwise_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn bitwise_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // Bitwise AND
@@ -172,7 +165,7 @@ impl RuleBuilder {
 
 
     // Arithmetic operators
-    fn arithmetic_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    fn arithmetic_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // Addition
@@ -238,7 +231,7 @@ impl RuleBuilder {
         rules
     }
 
-    pub fn other_bitvec() -> Vec<Rewrite<Grammar, GramAn>> {
+    pub fn other_bitvec() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let mut rules = vec![];
 
         // // Multiplexer
@@ -278,7 +271,7 @@ impl RuleBuilder {
     }
 
 
-    pub fn dist_bitvec() -> Vec<Rewrite<Grammar, GramAn>> {
+    pub fn dist_bitvec() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         vec![
             rw!("add_neg"; "(bvneg (bvadd ?a ?b))" => "(bvsub (bvneg ?a) ?b)"),
             rw!("and_or"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
@@ -302,13 +295,13 @@ impl RuleBuilder {
     }
 
 
-    // fn is_not_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut EGraph<Grammar, GramAn>, Id, &Subst) -> bool {
+    // fn is_not_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut EGraph<Grammar, GrammarAnalysis>, Id, &Subst) -> bool {
     //     let var1 = var.parse().unwrap();
     //     let var2 = var2.parse().unwrap();
     //     move |_egraph, _, subst| subst[var1] != subst[var2]
     // }
 
-    // fn is_not_zero(var: &'static str,) -> impl Fn(&mut EGraph<Grammar, GramAn>, Id, &Subst) -> bool {
+    // fn is_not_zero(var: &'static str,) -> impl Fn(&mut EGraph<Grammar, GrammarAnalysis>, Id, &Subst) -> bool {
     //     let var = var.parse().unwrap();
     //     let zero = Grammar::BitVec(Symbol::from("0"));
     //     move |egraph, _, subst| !egraph[subst[var]].nodes.contains(&zero)
@@ -316,7 +309,7 @@ impl RuleBuilder {
 
 
     // Collect all rules
-    pub fn all_rules() -> Vec<Rewrite<Grammar, GramAn>> {
+    pub fn all_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
         let rule_sets = [
             Self::eq_rules(),
             Self::logical_rules(),

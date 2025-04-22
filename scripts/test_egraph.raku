@@ -136,23 +136,25 @@ sub generate_equivs(IO::Path $equiv-file, IO::Path $sygus-file) {
     my $completed = Promise.new;
     my $promise-kept = False;  # Flag to track Promise status
     
-    # Set up the output handler
+    my $buffer = '';
     $proc.stdout.tap(-> $chunk {
-        for $chunk.lines -> $line {
-            # Skip empty lines
-            next unless $line.trim;
-            
-            # Format the output with parentheses
-            push @output-lines, "($line)";
-            $line-count++;
-            
-            # Check if we've reached the line limit
-            if $line-count >= $max-lines && !$promise-kept {
-                $promise-kept = True;  # Set flag to prevent multiple keeps
-                $proc.kill(SIGTERM); # Stop the process
-                $completed.keep(True);
-                last;
+        $buffer ~= $chunk;
+        
+        while $buffer ~~ /(.+?) \n/ {
+            my $line = $0.Str.trim;
+            if $line {
+                push @output-lines, "($line)";
+                $line-count++;
+                
+                if $line-count >= $max-lines && !$promise-kept {
+                    $promise-kept = True;
+                    $proc.kill(SIGTERM);
+                    $completed.keep(True);
+                    last;
+                }
             }
+            
+            $buffer = $buffer.substr($0.Str.chars + 1);
         }
     });
     

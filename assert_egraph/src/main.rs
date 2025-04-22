@@ -1,55 +1,54 @@
-mod utils;
+mod parser;
 mod rules;
 
-use egg::*;
 use std::fs;
 use std::time::Duration;
-use utils::parse_assertions;
-use rules::RuleBuilder;
+use std::error::Error;
+
 use clap::Parser;
+use egg::*;
+use itertools::{Itertools, Either};
 
-#[allow(unused_imports)]
-use itertools::Itertools;
+use parser::{parse_assertions, Assertion};
+use rules::RuleBuilder;
 
-
-type E = EGraph<Grammar, GramAn>;
+type E = EGraph<Grammar, GrammarAnalysis>;
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 define_language! {
     enum Grammar {
-        "=" = Eq([Id;2]),
-        "and" = And([Id;2]),
-        "or" = Or([Id;2]),
-        "bvsge" = Geq([Id;2]),
-        "bvsle" = Leq([Id;2]),
-        "bvsgt" = Gt([Id;2]),
-        "bvslt" = Lt([Id;2]),
-        "bvuge" = GeqU([Id;2]),
-        "bvule" = LeqU([Id;2]),
-        "bvugt" = GtU([Id;2]),
-        "bvult" = LtU([Id;2]),
-        "bvand" = BAnd([Id;2]),
-        "bvor" = BOr([Id;2]),
-        "bvxor" = BxOr([Id;2]),
-        "bvadd" = Add([Id;2]),
-        "bvsub" = Minus([Id;2]),
-        "bvmul" = Mul([Id;2]),
-
+        "=" = Eq([Id; 2]),
+        "and" = And([Id; 2]),
+        "or" = Or([Id; 2]),
+        "bvsge" = Geq([Id; 2]),
+        "bvsle" = Leq([Id; 2]),
+        "bvsgt" = Gt([Id; 2]),
+        "bvslt" = Lt([Id; 2]),
+        "bvuge" = GeqU([Id; 2]),
+        "bvule" = LeqU([Id; 2]),
+        "bvugt" = GtU([Id; 2]),
+        "bvult" = LtU([Id; 2]),
+        "bvand" = BAnd([Id; 2]),
+        "bvor" = BOr([Id; 2]),
+        "bvxor" = BxOr([Id; 2]),
+        "bvadd" = Add([Id; 2]),
+        "bvsub" = Minus([Id; 2]),
+        "bvmul" = Mul([Id; 2]),
         "not" = Not(Id),
         "bvneg" = Neg(Id),
         "bvnot" = BNot(Id),
-
-        "bvshl" = Bvshl([Id;2]),
-        "bvlshr" = Bvshr([Id;2]),
-
+        "bvshl" = Bvshl([Id; 2]),
+        "bvlshr" = Bvshr([Id; 2]),
         Bool(Symbol),
         BitVec(Symbol),
     }
 }
 
 #[derive(Default, Clone)]
-struct GramAn;
-impl Analysis<Grammar> for GramAn {
-   type Data = bool;
+struct GrammarAnalysis;
+
+impl Analysis<Grammar> for GrammarAnalysis {
+    type Data = bool;
 
     fn merge(&mut self, to: &mut Self::Data, from: Self::Data) -> DidMerge {
         if !*to && from {
@@ -68,38 +67,72 @@ impl Analysis<Grammar> for GramAn {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// File of assertions to canonicalise
-    #[arg(short, long, default_value="../tests/bvadd_test.out")]
+    /// Input file path
+    #[arg(short, long, default_value = "../tests/bvadd_test.out")]
     file: String,
+    
+    /// Enable verbose output
+    #[arg(short, long, action)]
+    verbose: bool,
 }
 
-
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
-    let e = EGraph::new(GramAn);
-    let mut r = Runner::default().with_egraph(e);
-
-    match fs::read_to_string(args.file) {
-        Ok(output) => {
-            let assertions = parse_assertions(&mut output.as_str());
-            for _a in assertions.unwrap() {
-                match _a.parse() {
-                    Ok(a) => {
-                        println!("{a}");
-                        let id = r.egraph.add_expr(&a);
-                        r.egraph.set_analysis_data(id, true);
-                    },
-                    Err(e) => panic!("Assertion not supported by grammar with error:\n\t {e}"),
-                }
-            }
-        },
-        Err(e) => panic!("Could not read file with error:\n\t {e}"),
+    
+    let e = EGraph::new(GrammarAnalysis);
+    let mut runner = Runner::default().with_egraph(e);
+    
+    let content = fs::read_to_string(&args.file)
+        .map_err(|e| format!("Could not read file: {e}"))?;
+    
+    let assertions = parse_assertions(&mut content.as_str())
+        .map_err(|_| "Could not parse file")?;
+    
+    let (parsed, unparsed): (Vec<_>, Vec<_>) = assertions
+        .into_iter()
+        .partition_map(|a| match a {
+            Assertion::Parsed(s) => Either::Left(s),
+            Assertion::Unparsed(s) => Either::Right(s),
+        });
+    
+    println!(
+        "Number of parsed assertions: {}, number of unparsed: {}", 
+        parsed.len(), 
+        unparsed.len()
+    );
+    
+    for assertion in parsed {
+        match assertion.parse() {
+            Ok(a) => {
+                let id = runner.egraph.add_expr(&a);
+                runner.egraph.set_analysis_data(id, true);
+            },
+            Err(e) => return Err(format!("Assertion not supported by grammar: {e}").into()),
+        }
     }
-
-    println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-
-    r = r.with_time_limit(Duration::new(18, 0)).with_node_limit(100_000).run(&RuleBuilder::all_rules());
-    // r.print_report();
-    println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-    // println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
+    
+    println!(
+        "Relevant classes before: {}", 
+        runner.egraph.classes().filter(|c| c.data).count()
+    );
+    
+    runner = runner
+        .with_time_limit(Duration::new(18, 0))
+        .with_node_limit(100_000)
+        .run(&RuleBuilder::all_rules());
+    
+    println!(
+        "Relevant classes after: {}", 
+        runner.egraph.classes().filter(|c| c.data).count()
+    );
+    
+    if args.verbose {
+        runner.print_report();
+        println!("{}", runner.egraph.classes()
+            .filter(|c| c.data)
+            .map(|c| runner.egraph.id_to_expr(c.id))
+            .join("\n"));
+    }
+    
+    Ok(())
 }

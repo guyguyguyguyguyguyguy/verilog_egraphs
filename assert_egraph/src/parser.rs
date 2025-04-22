@@ -1,5 +1,5 @@
 use winnow::{
-    ascii::{digit1, multispace0,  till_line_ending},
+    ascii::{digit1, multispace0, till_line_ending},
     combinator::{alt, delimited, preceded, repeat,  seq},
     error::ContextError,
     prelude::*,
@@ -21,6 +21,7 @@ pub enum Expr {
         op: String,
         expr: Vec<Expr>,
     },
+    Unparsed(String),
     Comment,
 }
 
@@ -47,7 +48,8 @@ impl ToString for Expr {
 
                 format!("({} {})", op, args)
             }
-            Expr::Comment => { "".to_string() }
+            Expr::Unparsed(s) => format!("Could not parse assertion {s}"),
+            Expr::Comment =>  "".to_string(), 
         }
     }
 }
@@ -130,14 +132,62 @@ fn parse_define_fun(i: &mut &'_ str) -> ModalResult<Expr> {
     .parse_next(i)
 }
 
-pub fn parse_assertions(input: &mut &'_ str) -> ModalResult<Vec<String>, ContextError> {
+#[derive(Debug)]
+pub enum Assertion {
+    Parsed(String),
+    Unparsed(String)
+}
+
+fn unparsed_define_fun(i: &mut &'_ str) -> ModalResult<Expr> {
+    let _ = ws("(").parse_next(i)?;
+    let _ = ws("define-fun").parse_next(i)?;
+    
+    let start = *i;
+    let mut depth = 1; 
+    
+    let mut idx = 0;
+    while idx < start.len() {
+        let c = start[idx..].chars().next().unwrap();
+        idx += c.len_utf8();
+        
+        if c == '(' {
+            depth += 1;
+        } else if c == ')' {
+            depth -= 1;
+            if depth == 0 {
+                break;
+            }
+        }
+    }
+    
+    let content = &start[..idx];
+    *i = &start[idx..]; // This updates the input position
+    
+    Ok(Expr::Unparsed(format!("define-fun {}", content)))
+}
+
+// Then update parse_assertions to use this in the correct order
+pub fn parse_assertions(input: &mut &'_ str) -> ModalResult<Vec<Assertion>, ContextError> {
     repeat(
         1..,
         alt((
             parse_comment,
-            s_exp(s_exp(parse_define_fun))
+            s_exp(alt((
+                s_exp(parse_define_fun),
+                unparsed_define_fun
+            )))
         ))
     )
-    .map(|asserts: Vec<Expr>| asserts.iter().filter(|a| !matches!(a, Expr::Comment)).map(ToString::to_string).collect())
+    .map(|asserts: Vec<Expr>| asserts
+        .iter()
+        .flat_map(|a| 
+            match a {
+                Expr::Term(_) | Expr::Operation{ .. } => Some(Assertion::Parsed(a.to_string())),
+                Expr::Comment => None,
+                Expr::Unparsed(s) => Some(Assertion::Unparsed(s.clone())),
+            }
+        )
+        .collect()
+    )
     .parse_next(input)
 }
