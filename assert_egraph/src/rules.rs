@@ -79,17 +79,17 @@ impl RuleBuilder {
         // Unsigned greater than or equal
         rules.extend([
             rw!("ugeq1"; "(bvuge ?a ?a)"               => "true"),
-            rw!("ugeq2"; "(or (bvugt ?a ?b) (= ?a ?b))" => "(bvuge ?a ?b)"),
-            rw!("ugeq3"; "(or (bvult ?b ?a) (= ?a ?b))" => "(bvuge ?a ?b)"),
-            rw!("ugeq4"; "(not (bvult ?a ?b))"          => "(bvuge ?a ?b)"),
+            // rw!("ugeq2"; "(or (bvugt ?a ?b) (= ?a ?b))" => "(bvuge ?a ?b)"),
+            // rw!("ugeq3"; "(or (bvult ?b ?a) (= ?a ?b))" => "(bvuge ?a ?b)"),
+            // rw!("ugeq4"; "(not (bvult ?a ?b))"          => "(bvuge ?a ?b)"),
         ]);
 
         // Unsigned less than or equal
         rules.extend([
             rw!("uleq1"; "(bvule ?a ?a)"               => "true"),
-            rw!("uleq2"; "(or (bvult ?a ?b) (= ?a ?b))" => "(bvule ?a ?b)"),
-            rw!("uleq3"; "(or (bvugt ?b ?a) (= ?a ?b))" => "(bvule ?a ?b)"),
-            rw!("uleq4"; "(not (bvugt ?a ?b))"          => "(bvule ?a ?b)"),
+            // rw!("uleq2"; "(or (bvult ?a ?b) (= ?a ?b))" => "(bvule ?a ?b)"),
+            // rw!("uleq3"; "(or (bvugt ?b ?a) (= ?a ?b))" => "(bvule ?a ?b)"),
+            // rw!("uleq4"; "(not (bvugt ?a ?b))"          => "(bvule ?a ?b)"),
         ]);
 
         // Unsigned greater than
