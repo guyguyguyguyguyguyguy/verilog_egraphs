@@ -19,10 +19,10 @@ define_language! {
         "=" = Eq([Id;2]),
         "and" = And([Id;2]),
         "or" = Or([Id;2]),
-        ">=" = Geq([Id;2]),
-        "<=" = Leq([Id;2]),
-        ">" = Gt([Id;2]),
-        "<" = Lt([Id;2]),
+        "bvsge" = Geq([Id;2]),
+        "bvsle" = Leq([Id;2]),
+        "bvsgt" = Gt([Id;2]),
+        "bvslt" = Lt([Id;2]),
         "bvuge" = GeqU([Id;2]),
         "bvule" = LeqU([Id;2]),
         "bvugt" = GtU([Id;2]),
@@ -38,10 +38,8 @@ define_language! {
         "bvneg" = Neg(Id),
         "bvnot" = BNot(Id),
 
-        // Other for rewriting, need to test if needed
         "bvshl" = Bvshl([Id;2]),
-        "bvshr" = Bvshr([Id;2]),
-        "mux" = Mux([Id;3]),
+        "bvlshr" = Bvshr([Id;2]),
 
         Bool(Symbol),
         BitVec(Symbol),
@@ -87,6 +85,7 @@ fn main() {
             for _a in assertions.unwrap() {
                 match _a.parse() {
                     Ok(a) => {
+                        println!("{a}");
                         let id = r.egraph.add_expr(&a);
                         r.egraph.set_analysis_data(id, true);
                     },
@@ -100,7 +99,7 @@ fn main() {
     println!("Number of classes before rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
 
     r = r.with_time_limit(Duration::new(18, 0)).with_node_limit(100_000).run(&RuleBuilder::all_rules());
-    r.print_report();
+    // r.print_report();
     println!("Number of classes after rewrites: {}", &r.egraph.classes().filter(|c| c.data).count());
-    println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
+    // println!("{}", r.egraph.classes().filter(|c| c.data).map(|c| r.egraph.id_to_expr(c.id)).join("\n"));
 }

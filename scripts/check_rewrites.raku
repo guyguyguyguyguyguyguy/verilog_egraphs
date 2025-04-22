@@ -8,7 +8,7 @@ sub MAIN($input-file, $output-file = "output.smt2") {
     my $output = $output-file.IO.open(:w);
     my $match-count = 0;
     
-    for $file.lines -> $line {
+    for $file.lines.kv -> $line-no, $line {
         if $line ~~ /^ \s* 'rw!' \s* '(' \s* '"' $<a>=( <-["]>+ ) '"' \s* ';' \s* '"' $<b>=( <-["]>+ ) '"' \s* '=>' \s* '"' $<c>=( <-["]>+ ) '"' / {
             $output = $output-file.IO.open(:w, :truncate);
             $match-count++;
@@ -18,7 +18,7 @@ sub MAIN($input-file, $output-file = "output.smt2") {
             # Extract variables and remove question marks
             my @vars = unique-vars($b-expr, $c-expr);
 
-            say "\nProcessing match #$match-count: $b-expr => $c-expr";
+            say "\nProcessing rule #$match-count on line {$line-no+1}: $b-expr => $c-expr";
             
             # Generate SMT-LIB content
             generate-smt-lib($output, @vars, $b-expr, $c-expr);
@@ -127,7 +127,13 @@ sub determine-return-type($expr, %var-types) {
 # Generate the SMT-LIB file content
 sub generate-smt-lib($output, @vars, $b-expr, $c-expr) {
     # Create variable replacements
-    my %replace = @vars.map({ "?$_" => $_ });
+    my %replace = (
+        |@vars.map({ "?$_" => $_ }),
+        '0'  => '#b0' ~ '0' x 63,
+        '-1' => '#b1' ~ '1' x 63,
+        '1'  => '#b' ~ '0' x 63 ~ '1',
+        '2'  => '#b' ~ '0' x 62 ~ '10',
+    );
     
     # Apply replacements to expressions
     my $clean-b = replace-vars($b-expr, %replace);
@@ -149,7 +155,7 @@ sub generate-smt-lib($output, @vars, $b-expr, $c-expr) {
             %var-types{$var} = "(_ BitVec 64)";
         }
     }
-        
+
     # Output variable declarations with inferred types
     for @vars -> $var {
         $output.say: "(declare-fun $var () {%var-types{$var}})";
@@ -161,6 +167,7 @@ sub generate-smt-lib($output, @vars, $b-expr, $c-expr) {
     
     # Output function definitions with parameter list
     my $params = @vars.map({ "($_ {%var-types{$_}})" }).join(" ");
+
     $output.say: "(define-fun f ($params) $b-return-type $clean-b)";
     $output.say: "(define-fun g ($params) $c-return-type $clean-c)";
     
@@ -175,10 +182,32 @@ sub generate-smt-lib($output, @vars, $b-expr, $c-expr) {
 }
 
 # Replace variables in expression
+# Replace variables in expression
 sub replace-vars($expr, %replacements) {
     my $result = $expr;
+    
+    # First handle the special numeric cases (-1 and 1) with a more targeted approach
+    # Replace -1 first with a temporary marker
+    $result = $result.subst(rx{ '-1' }, 'NEGATIVE_ONE_MARKER', :g);
+    # Replace 1 (but not as part of other tokens)
+    $result = $result.subst(rx{ << '1' >> }, 'ONE_MARKER', :g);
+
+    $result = $result.subst(rx{ << '2' >> }, 'TWO_MARKER', :g);
+    
+    # Now handle variables and other replacements
     for %replacements.kv -> $from, $to {
+        next if $from eq '-1' || $from eq '1'; # Skip these as we handled them specially
         $result = $result.subst($from, $to, :g);
     }
+    
+    # Finally, replace our markers with the actual binary representations
+    $result = $result.subst('NEGATIVE_ONE_MARKER', %replacements{'-1'}, :g);
+    $result = $result.subst('ONE_MARKER', %replacements{'1'}, :g);
+    $result = $result.subst('TWO_MARKER', %replacements{'2'}, :g);
+    # Handle 0 separately if needed
+    if %replacements{'0'}:exists {
+        $result = $result.subst(rx{ << '0' >> }, %replacements{'0'}, :g);
+    }
+    
     return $result;
 }

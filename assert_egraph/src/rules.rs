@@ -60,32 +60,21 @@ impl RuleBuilder {
         // Greater than or equal
         rules.extend([
             rw!("geq1"; "(bvsge ?a ?a)"               => "true"),
-            rw!("geq2"; "(or (bvsgt ?a ?b) (= ?a ?b))" => "(bvsge ?a ?b)"),
-            rw!("geq3"; "(or (bvslt ?b ?a) (= ?a ?b))" => "(bvsge ?a ?b)"),
-            rw!("geq4"; "(not (bvslt ?a ?b))"          => "(bvsge ?a ?b)"),
         ]);
 
         // Less than or equal
         rules.extend([
             rw!("leq1"; "(bvsle ?a ?a)"               => "true"),
-            rw!("leq2"; "(or (bvsle ?a ?b) (= ?a ?b))" => "(bvsle ?a ?b)"),
-            rw!("leq3"; "(or (bvsgt ?b ?a) (= ?a ?b))" => "(bvsle ?a ?b)"),
-            rw!("leq4"; "(not (bvsgt ?a ?b))"          => "(bvsle ?a ?b)"),
         ]);
 
         // Greater than
         rules.extend([
             rw!("gt1"; "(bvsgt ?a ?a)"  => "false"),
-            rw!("gt2"; "(bvsgt ?a ?b)"  => "(bvslt ?b ?a)"),
-            rw!("gt3"; "(bvsle ?b ?a)" => "(bvsgt ?a ?b)"),
-            rw!("gt4"; "(bvsge ?a ?b)" => "(bvsgt ?a ?b)"),
         ]);
 
         // Less than
         rules.extend([
             rw!("lt1"; "(bvslt ?a ?a)"  => "false"),
-            rw!("lt2"; "(bvsge ?b ?a)" => "(bvslt ?a ?b)"),
-            rw!("lt3"; "(bvsle ?a ?b)" => "(bvslt ?a ?b)"),
         ]);
 
         rules
@@ -113,16 +102,11 @@ impl RuleBuilder {
         // Unsigned greater than
         rules.extend([
             rw!("ugt1"; "(bvugt ?a ?a)"  => "false"),
-            rw!("ugt2"; "(bvugt ?a ?b)"  => "(bvult ?b ?a)"),
-            rw!("ugt3"; "(bvugt ?a ?b)"  => "(bvule ?b ?a)"),
-            rw!("ugt4"; "(bvugt ?a ?b)"  => "(bvuge ?a ?b)"),
         ]);
 
         // Unsigned less than
         rules.extend([
             rw!("ult1"; "(bvult ?a ?a)"  => "false"),
-            rw!("ult2"; "(bvuge ?b ?a)" => "(bvult ?a ?b)"),
-            rw!("ult3"; "(bvule ?a ?b)" => "(bvult ?a ?b)"),
         ]);
 
         rules
@@ -159,8 +143,6 @@ impl RuleBuilder {
             rw!("bvor9"; "(bvor ?a (bvor ?b ?c))"                     => "(bvor (bvor ?a ?b) ?c)"),
             rw!("bvor10"; "(bvand (bvor ?a ?b) (bvor ?a ?c))"         => "(bvor ?a (bvand ?b ?c))"),
             rw!("bvor12"; "(bvor (bvxor ?a ?b) ?b)"                   => "(bvor ?a ?b)"),
-            rw!("bvor13"; "(bvor (bvnot ?a) ?b)"                   => "(bvnot (bvor ?a ?b))"),
-            rw!("bvor14"; "(bvor (bvnot ?a) ?b)"                   => "(bvor ?a (bvnot ?b))"),
         ]);
 
         // Bitwise XOR
@@ -171,8 +153,8 @@ impl RuleBuilder {
             rw!("bvxor4"; "(bvxor ?a -1)"             => "(bvnot ?a)"),
             rw!("bvxor5"; "(bvxor ?a (bvxor ?b ?c))"  => "(bvxor (bvxor ?a ?b) ?c)"),
             rw!("bvxor6"; "(bvxor ?a (bvnot ?a))"     => "-1"),
-            rw!("bvxor9"; "(bvxor (bvnot ?a) ?b))"     => "(bvnot (bvxor ?a ?b))"),
-            rw!("bvxor10"; "(bvxor (bvnot ?a) ?b))"     => "(bvxor ?a (bvnot ?b))"),
+            rw!("bvxor9"; "(bvxor (bvnot ?a) ?b)"     => "(bvnot (bvxor ?a ?b))"),
+            rw!("bvxor10"; "(bvxor (bvnot ?a) ?b)"     => "(bvxor ?a (bvnot ?b))"),
             rw!("bvxor11"; "(bvxor (bvand ?a ?b) (bvand ?a (bvnot ?b)))"     => "?a"),
         ]);
         rules.extend([
@@ -203,7 +185,7 @@ impl RuleBuilder {
             rw!("bvadd5"; "(bvadd ?a (bvadd ?b ?c))" => "(bvadd (bvadd ?a ?b) ?c)"),
             rw!("bvadd6"; "(bvadd (bvand ?a ?b) (bvnot ?b))" => "(bvor ?a (bvnot ?b))"),
             rw!("bvadd7"; "(bvadd (bvand ?a ?b) (bvand ?a (bvnot ?b)))" => "?a"),
-            rw!("bvadd10"; "(bvadd (bvshl (bvand ?a ?b) ?b) (bvxor ?a ?b))" => "(bvadd ?a ?b)"),
+            rw!("bvadd10"; "(bvadd (bvshl (bvand ?a ?b) 1) (bvxor ?a ?b))" => "(bvadd ?a ?b)"),
         ]);
 
         // Substitution
@@ -231,7 +213,7 @@ impl RuleBuilder {
             rw!("bvmul3"; "(bvmul ?a 1)"             => "?a"),
             rw!("bvmul4"; "(bvmul ?a (bvmul ?b ?c))" => "(bvmul (bvmul ?a ?b) ?c)"),
             rw!("bvmul5"; "(bvmul ?a -1)"            => "(bvneg ?a)"),
-            rw!("bvmul6"; "(bvadd (bvmul ?a ?b) ?a)" => "(bvmul ?a (bvadd ?b 1)))"),
+            rw!("bvmul6"; "(bvadd (bvmul ?a ?b) ?a)" => "(bvmul ?a (bvadd ?b 1))"),
             rw!("bvmul7"; "(bvmul ?a -1)"             => "(bvneg ?a)"),
         ]);
 
@@ -248,9 +230,9 @@ impl RuleBuilder {
 
         // Right shift
         rules.extend([
-            rw!("bvshr1"; "(bvshr ?a 0)"             => "?a"),
-            rw!("bvshr2"; "(bvshr 0 ?a)"             => "0"),
-            rw!("bvshr3"; "(bvshr (bvand ?a ?b) ?c)" => "(bvand (bvshr ?a ?c) (bvshr ?b ?c))"),
+            rw!("bvlshr1"; "(bvlshr ?a 0)"             => "?a"),
+            rw!("bvlshr2"; "(bvlshr 0 ?a)"             => "0"),
+            rw!("bvlshr3"; "(bvlshr (bvand ?a ?b) ?c)" => "(bvand (bvlshr ?a ?c) (bvlshr ?b ?c))"),
         ]);
 
         rules
@@ -259,17 +241,17 @@ impl RuleBuilder {
     pub fn other_bitvec() -> Vec<Rewrite<Grammar, GramAn>> {
         let mut rules = vec![];
 
-        // Multiplexer
-        rules.extend([
-            rw!("mux1"; "(mux 0 ?a ?b)"                                         => "?b"),
-            rw!("mux2"; "(mux -1 ?a ?b)"                                        => "?a"),
-            rw!("mux3"; "(mux ?a ?a (bvnot ?a))"                                => "-1"),
-            rw!("mux4"; "(mux ?a (bvnot ?a) ?a)"                                => "0"),
-            rw!("mux5"; "(mux ?a ?b (mux ?a ?c ?d))"                           => "(mux ?a ?b ?d)"),
-            rw!("mux6"; "(mux ?a (mux ?a ?b ?c) ?d)"                          => "(mux ?a ?b ?d)"),
-            rw!("mux7"; "(mux ?a ?b ?c)"                                        => "(bvor (bvand ?a ?b) (bvand (bvnot ?a) ?c))"),
-            rw!("mux8"; "(bvor (bvand (bvnot ?a) ?b) (bvand ?a ?c))"            => "(mux ?a ?c ?b)"),
-        ]);
+        // // Multiplexer
+        // rules.extend([
+        //     rw!("mux1"; "(mux 0 ?a ?b)"                                         => "?b"),
+        //     rw!("mux2"; "(mux -1 ?a ?b)"                                        => "?a"),
+        //     rw!("mux3"; "(mux ?a ?a (bvnot ?a))"                                => "-1"),
+        //     rw!("mux4"; "(mux ?a (bvnot ?a) ?a)"                                => "0"),
+        //     rw!("mux5"; "(mux ?a ?b (mux ?a ?c ?d))"                           => "(mux ?a ?b ?d)"),
+        //     rw!("mux6"; "(mux ?a (mux ?a ?b ?c) ?d)"                          => "(mux ?a ?b ?d)"),
+        //     rw!("mux7"; "(mux ?a ?b ?c)"                                        => "(bvor (bvand ?a ?b) (bvand (bvnot ?a) ?c))"),
+        //     rw!("mux8"; "(bvor (bvand (bvnot ?a) ?b) (bvand ?a ?c))"            => "(mux ?a ?c ?b)"),
+        // ]);
 
         // Misc
         rules.extend([
@@ -300,9 +282,9 @@ impl RuleBuilder {
         vec![
             rw!("add_neg"; "(bvneg (bvadd ?a ?b))" => "(bvsub (bvneg ?a) ?b)"),
             rw!("and_or"; "(bvand ?a (bvor ?b ?c))" => "(bvor (bvand ?a ?b) (bvand ?a ?c))"),
-            rw!("or_and"; "(bvor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvor ?a ?c) ?b))"),
+            rw!("or_and"; "(bvor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvor ?a ?c) ?b)"),
             rw!("and_xor"; "(bvand ?a (bvxor ?b ?c))" => "(bvxor (bvand ?a ?b) (bvand ?a ?c))"),
-            rw!("xor_and"; "(bvxor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvxor ?a ?c) ?b))"),
+            rw!("xor_and"; "(bvxor (bvand ?a ?b) (bvand ?c ?b))" => "(bvand (bvxor ?a ?c) ?b)"),
             rw!("or_and2"; "(bvor ?a (bvand ?b ?c))" => "(bvand (bvor ?a ?b) (bvor ?a ?c))"),
             rw!("and_or2"; "(bvand (bvor ?a ?b) (bvor ?c ?b))" => "(bvor (bvand ?a ?c) ?b)"),
             rw!("mul_add"; "(bvmul ?a (bvadd ?b ?c))" => "(bvadd (bvmul ?a ?b) (bvmul ?a ?c))"),
