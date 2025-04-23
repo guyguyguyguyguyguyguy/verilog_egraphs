@@ -7,4 +7,5 @@ The egraph code expects:
 
 To run the code:
 	1. cd into assert_egraph
-	2. run: "cargo run -- -f "input-file" -o "optional output-file" -t "optional timeout"
+	2. run: "cargo build -- release" to build exectuable
+	3. run executable using ./target/release/assert_egraph -f "input-file" -o "optional output-file" -t "optional timeout"
