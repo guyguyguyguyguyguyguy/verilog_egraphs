@@ -1,0 +1,10 @@
+Running branch for carrying out EGraph rewrites over assertions.
+
+The egraph code expects: 
+	1. An input file containing the assertions 
+	2. An optional output file (defaulted as "assertionOutput.out") 
+	3. An optional timeout in seconds (defaulted at 10 seconds)
+
+To run the code:
+	1. cd into assert_egraph
+	2. run: "cargo run -- -f "input-file" -o "optional output-file" -t "optional timeout"

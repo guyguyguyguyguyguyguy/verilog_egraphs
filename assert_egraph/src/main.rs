@@ -2,6 +2,7 @@ mod parser;
 mod rules;
 
 use std::fs;
+use std::io::prelude::*;
 use std::time::Duration;
 use std::error::Error;
 
@@ -68,12 +69,16 @@ impl Analysis<Grammar> for GrammarAnalysis {
 #[command(version, about, long_about = None)]
 struct Args {
     /// Input file path
-    #[arg(short, long, default_value = "../tests/bvadd_test.out")]
+    #[arg(short, long)]
     file: String,
     
     /// Enable verbose output
-    #[arg(short, long, action)]
-    verbose: bool,
+    #[arg(short, long, default_value="assertionOutput.out")]
+    output: String,
+
+    /// EGraph rewrite timeout
+    #[arg(short, long, default_value="10")]
+    timeout: u64,
 }
 
 fn main() -> Result<()> {
@@ -88,18 +93,12 @@ fn main() -> Result<()> {
     let assertions = parse_assertions(&mut content.as_str())
         .map_err(|_| "Could not parse file")?;
     
-    let (parsed, unparsed): (Vec<_>, Vec<_>) = assertions
+    let (parsed, _unparsed): (Vec<_>, Vec<_>) = assertions
         .into_iter()
         .partition_map(|a| match a {
             Assertion::Parsed(s) => Either::Left(s),
             Assertion::Unparsed(s) => Either::Right(s),
         });
-    
-    println!(
-        "Number of parsed assertions: {}, number of unparsed: {}", 
-        parsed.len(), 
-        unparsed.len()
-    );
     
     for assertion in parsed {
         match assertion.parse() {
@@ -111,28 +110,18 @@ fn main() -> Result<()> {
         }
     }
     
-    println!(
-        "Relevant classes before: {}", 
-        runner.egraph.classes().filter(|c| c.data).count()
-    );
-    
     runner = runner
-        .with_time_limit(Duration::new(18, 0))
+        .with_time_limit(Duration::new(args.timeout, 0))
         .with_node_limit(100_000)
         .run(&RuleBuilder::all_rules());
     
-    println!(
-        "Relevant classes after: {}", 
-        runner.egraph.classes().filter(|c| c.data).count()
-    );
-    
-    if args.verbose {
-        runner.print_report();
-        println!("{}", runner.egraph.classes()
-            .filter(|c| c.data)
-            .map(|c| runner.egraph.id_to_expr(c.id))
-            .join("\n"));
-    }
-    
+    let unique_assertions = runner.egraph
+        .classes()
+        .filter(|c| c.data)
+        .map(|c| runner.egraph.id_to_expr(c.id))
+        .join("\n");
+
+    let mut file = fs::File::create(args.output)?;
+    file.write_all(unique_assertions.as_bytes().as_ref())?;
     Ok(())
 }
