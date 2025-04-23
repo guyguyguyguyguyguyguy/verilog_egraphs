@@ -1,0 +1,8 @@
+(set-logic ALL)
+(declare-fun a () (_ BitVec 64))
+(declare-fun b () (_ BitVec 64))
+(declare-fun c () (_ BitVec 64))
+(define-fun f ((a (_ BitVec 64)) (b (_ BitVec 64)) (c (_ BitVec 64))) (_ BitVec 64) (bvxor (bvshl a b) (bvshl c b)))
+(define-fun g ((a (_ BitVec 64)) (b (_ BitVec 64)) (c (_ BitVec 64))) (_ BitVec 64) (bvshl (bvxor a c) b))
+(assert (not (= (f a b c) (g a b c))))
+(check-sat)
