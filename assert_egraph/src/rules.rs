@@ -28,14 +28,28 @@ impl RuleBuilder {
         // AND rules
         rules.extend([
             rw!("and0"; "(and ?a ?b)"          => "(and ?b ?a)"),
-            rw!("and1"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+            rw!("and2"; "(and ?a false)" => "false"),
+            rw!("and3"; "(and ?a ?a)" => "?a"),
+            rw!("and4"; "(and ?a true)" => "?a"),
+            rw!("and6"; "(and ?a (or ?a ?b))" => "?a"),
         ]);
+        rules.extend([
+            rw!("and1"; "(and ?a (and ?b ?c))" <=> "(and (and ?a ?b) ?c)"),
+            rw!("and5"; "(and ?a (or ?b ?c))" <=> "(or (and ?a ?b) (and ?a ?c))"),
+        ].concat());
 
-        // OR rules
+        // OR ruleos
         rules.extend([
             rw!("or0"; "(or ?a ?b)"         => "(or ?b ?a)"),
-            rw!("or1"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+            rw!("or2"; "(or ?a ?a)"         => "?a"),
+            rw!("or3"; "(or ?a true)"         => "true"),
+            rw!("or4"; "(or ?a false)"         => "?a"),
+            rw!("or6"; "(or ?a (and ?a ?b))" => "?a"),
         ]);
+        rules.extend([
+            rw!("or1"; "(or ?a (or ?b ?c))" <=> "(or (or ?a ?b) ?c)"),
+            rw!("or5"; "(or ?a (and ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
+        ].concat());
 
         // Not rules
         rules.extend([
@@ -43,6 +57,10 @@ impl RuleBuilder {
             rw!("not1"; "(not false)"    => "true"),
             rw!("not2"; "(not (not ?a))" => "?a"),
         ]);
+        rules.extend([
+            rw!("not3"; "(not (and ?a ?b))" <=> "(or (not ?a) (not ?b))"),
+            rw!("not4"; "(not (or ?a ?b))" <=> "(and (not ?a) (not ?b))"),
+        ].concat());
 
         rules
     }
