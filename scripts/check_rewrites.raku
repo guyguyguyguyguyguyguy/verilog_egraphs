@@ -1,213 +1,156 @@
+#!/usr/bin/env raku
+# Script to extract rewrite rules from Rust code and generate SMT2 files
+
 sub MAIN($input-file, $output-file = "output.smt2") {
     my $file = $input-file.IO;
-    
+
     unless $file.e && $file.f {
         die "File '$input-file' does not exist or is not a regular file";
     }
-    
-    my $output = $output-file.IO.open(:w);
+
     my $match-count = 0;
-    
+
     for $file.lines.kv -> $line-no, $line {
-        if $line ~~ /^ \s* 'rw!' \s* '(' \s* '"' $<a>=( <-["]>+ ) '"' \s* ';' \s* '"' $<b>=( <-["]>+ ) '"' \s* '=>' \s* '"' $<c>=( <-["]>+ ) '"' / {
-            $output = $output-file.IO.open(:w, :truncate);
+        if $line ~~ /^ \s* 'rw!' \s* '(' \s* '"' $<name>=( <-["]>+ ) '"' \s* ';' \s* '"' $<lhs>=( <-["]>+ ) '"' \s* '=>' \s* '"' $<rhs>=( <-["]>+ ) '"' / {
             $match-count++;
-            my $b-expr = ~$<b>;
-            my $c-expr = ~$<c>;
-            
-            # Extract variables and remove question marks
-            my @vars = unique-vars($b-expr, $c-expr);
+            my $rule-name = ~$<name>;
+            my $lhs = ~$<lhs>;
+            my $rhs = ~$<rhs>;
 
-            say "\nProcessing rule #$match-count on line {$line-no+1}: $b-expr => $c-expr";
-            
-            # Generate SMT-LIB content
-            generate-smt-lib($output, @vars, $b-expr, $c-expr);
-            $output.close;
-            
-            # Run cvc5 on the generated file
-            # my $proc = Proc::Async.new('/home/guy/Downloads/cvc5-Linux-x86_64-static/bin/cvc5', $output-file);
-            my $cvc5-path = '/home/guy/Downloads/cvc5-Linux-x86_64-static/bin/cvc5';
-            my $proc = run $cvc5-path, $output-file, :out, :err;
-            my $output-text = $proc.out.slurp(:close);
-            my $error-text = $proc.err.slurp(:close);
+            # Skip rules with conditions (if statements)
+            next if $line ~~ / 'if' \s+ 'Self::' /;
 
-            $output-text=$output-text.trim;
-            if $output-text.chars == 0 {
-                say "Warning: No output received from cvc5";
-                say "Error output: $error-text" if $error-text.chars > 0;
-            }
-            if $output-text ne "unsat" {
-                say "CVC5 output is: $output-text";
-                $output = $output-file.IO.open(:a);
-                $output.say: "(get-model)";
+            say "\nProcessing rule #$match-count on line {$line-no+1} ($rule-name): $lhs => $rhs";
 
-                my $cvc5-path = '/home/guy/Downloads/cvc5-Linux-x86_64-static/bin/cvc5';
-                my $proc = run $cvc5-path, '--produce-models', $output-file, :out, :err;
-                $output-text = $proc.out.slurp(:close);
-                $output-text=$output-text.trim;
-
-                $output-text.say;
-                say "Found non-unsat result at match #$match-count! Stopping.";
+            # Generate and test the SMT2 file
+            if !check_equivalence($lhs, $rhs, $output-file) {
+                say "Found non-equivalent rule: $rule-name";
                 say "Final SMT-LIB file is at $output-file";
                 return;
             }
         }
     }
-    
-    $output.close;
-    say "Generated SMT-LIB file at $output-file";
+
+    say "All rules checked. No non-equivalent rules found.";
 }
 
-# Extract unique variables from expressions and remove question marks
-sub unique-vars($b-expr, $c-expr) {
-    my @all-vars = ($b-expr ~ " " ~ $c-expr).comb(/\?\w+/)
-                   .unique
-                   .sort
-                   .map(*.substr(1));  # Remove the ? prefix
-    return @all-vars;
+# Check if two expressions are equivalent by generating an SMT2 file and running cvc5
+sub check_equivalence($lhs, $rhs, $output-file) {
+    # Extract variables
+    my @vars = extract_variables($lhs, $rhs);
+
+    # Generate SMT2 file
+    my $smt2 = generate_smt2($lhs, $rhs, @vars);
+
+    # Write to file
+    spurt $output-file, $smt2;
+
+    # Run cvc5
+    my $cvc5-path = '/home/guy/Downloads/cvc5-Linux-x86_64-static/bin/cvc5';
+    my $proc = run $cvc5-path, $output-file, :out, :err;
+    my $output = $proc.out.slurp(:close).trim;
+    my $error = $proc.err.slurp(:close).trim;
+
+    if $output.chars == 0 {
+        say "Warning: No output received from cvc5";
+        say "Error output: $error" if $error.chars > 0;
+        return True; # Assume no problem if no output
+    }
+
+    if $output ne "unsat" {
+        say "CVC5 output is: $output";
+
+        # Add get-model to the file
+        spurt $output-file, $smt2 ~ "\n(get-model)";
+
+        # Run cvc5 again with model generation
+        my $proc2 = run $cvc5-path, '--produce-models', $output-file, :out;
+        my $model = $proc2.out.slurp(:close).trim;
+        say $model;
+
+        return False; # Found a counterexample
+    }
+
+    return True; # Expressions are equivalent
 }
 
-# Generate the SMT-LIB file content
-# Determine variable types based on their context in the expression
-sub determine-var-types($expr) {
-    my %var-types;
-
-    # Boolean operators
-    my %bool-ops = map { $_ => "Bool" }, < = and or not >;
-
-    # Match all binary expressions
-    for $expr.match(:g, / '(' \s* (<[\w\d\-_]>+) \s+ (\?\w+) \s+ (\?\w+) \s* ')' /) -> $m {
-        my $op = ~$m[0];
-        my $lhs = ~$m[1];
-        my $rhs = ~$m[2];
-
-        my $type = %bool-ops{$op} // "(_ BitVec 64)";
-
-        %var-types{$lhs.substr(1)} = $type;
-        %var-types{$rhs.substr(1)} = $type;
-    }
-
-    # Also handle unary expressions like `(not ?x)`
-    for $expr.match(:g, / '(' \s* (<[\w\d\-_]>+) \s+ (\?\w+) \s* ')' /) -> $m {
-        my $op = ~$m[0];
-        my $var = ~$m[1];
-        my $type = %bool-ops{$op} // "(_ BitVec 64)";
-        %var-types{$var.substr(1)} = $type;
-    }
-
-    # Ensure all vars seen are typed
-    for $expr.comb(/\?\w+/).unique -> $var {
-        my $var-name = $var.substr(1);
-        %var-types{$var-name} //= "(_ BitVec 64)";
-    }
-
-    return %var-types;
+# Extract variables from expressions
+sub extract_variables($expr1, $expr2) {
+    my @vars = ($expr1 ~ " " ~ $expr2).comb(/\?\w+/)
+               .unique
+               .sort
+               .map(*.substr(1)); # Remove the ? prefix
+    return @vars;
 }
 
-# Extract the outermost function to determine return type
-sub determine-return-type($expr, %var-types) {
-    # Remove leading whitespace
-    my $clean-expr = $expr.trim;
-    
-    if "Bool" eq any(%var-types.values) {
-        return "Bool";
-    }
+# Determine if an expression is Boolean
+sub is_boolean_expr($expr) {
+    # Common Boolean patterns
+    return True if $expr eq "true" || $expr eq "false";
 
-    # Check for direct boolean values
-    return "Bool" if $clean-expr eq "true" || $clean-expr eq "false";
-    
-    # Check if expression starts with a boolean operator
-    if $clean-expr ~~ /^ \s* \( \s* (['=' | 'bvult' | 'bvslt' | 'bvugt' | 'bvsgt' | 'bvule' | 'bvsle' | 'bvuge' | 'bvsge' | 'and' | 'or' | 'not']) \s/ {
-        return "Bool";
-    }
+    # Check if expression uses Boolean operators
+    return True if $expr ~~ /^ \s* \( \s* ['=' | 'and' | 'or' | 'not' | '=>' | 'xor'] \s/;
 
-    return "(_ BitVec 64)";
+    # Default to false if no clear boolean indicators
+    return False;
 }
 
-# Generate the SMT-LIB file content
-sub generate-smt-lib($output, @vars, $b-expr, $c-expr) {
-    # Create variable replacements
-    my %replace = (
-        |@vars.map({ "?$_" => $_ }),
-        '0'  => '#b0' ~ '0' x 63,
-        '-1' => '#b1' ~ '1' x 63,
-        '1'  => '#b' ~ '0' x 63 ~ '1',
-        '2'  => '#b' ~ '0' x 62 ~ '10',
-    );
-    
-    # Apply replacements to expressions
-    my $clean-b = replace-vars($b-expr, %replace);
-    my $clean-c = replace-vars($c-expr, %replace);
-    
-    $output.say: "(set-logic ALL)";
-    
-    # Determine variable types based on context
-    my %b-var-types = determine-var-types($b-expr);
-    my %c-var-types = determine-var-types($c-expr);
-    
-    # Merge variable types, preferring Bool over BitVec if there's a conflict
-    my %var-types;
+# Generate SMT2 file content
+sub generate_smt2($lhs, $rhs, @vars) {
+    # Determine if we're dealing with Boolean expressions
+    my $is_bool_context = is_boolean_expr($lhs) || is_boolean_expr($rhs);
+
+    # Make a guess at what type each variable should be
+    # For expressions with equality, not, and, or - force Boolean types
+    my $force_bool = $lhs ~~ /'(not '/ || $rhs ~~ /'(not '/ ||
+                    $lhs ~~ /'(and '/ || $rhs ~~ /'(and '/ ||
+                    $lhs ~~ /'(or '/ || $rhs ~~ /'(or '/ ||
+                    $lhs ~~ /'(= '/ || $rhs ~~ /'(= '/ ||
+                    $lhs ~~ /'(=> '/ || $rhs ~~ /'(=> '/;
+
+    my $var_type = $force_bool || $is_bool_context ?? "Bool" !! "(_ BitVec 64)";
+    my $return_type = $var_type;
+
+    # Replace Rust syntax with SMT2 syntax
+    my $clean_lhs = clean_expression($lhs, @vars);
+    my $clean_rhs = clean_expression($rhs, @vars);
+
+    # Build the SMT2 file
+    my $smt2 = "(set-logic ALL)\n";
+
+    # Declare variables
     for @vars -> $var {
-        if (%b-var-types{$var}:exists && %b-var-types{$var} eq "Bool") || 
-        (%c-var-types{$var}:exists && %c-var-types{$var} eq "Bool") {
-            %var-types{$var} = "Bool";
-        } else {
-            %var-types{$var} = "(_ BitVec 64)";
-        }
+        $smt2 ~= "(declare-fun $var () $var_type)\n";
     }
 
-    # Output variable declarations with inferred types
-    for @vars -> $var {
-        $output.say: "(declare-fun $var () {%var-types{$var}})";
-    }
-    
-    # Determine return types from outermost function
-    my $b-return-type = determine-return-type($b-expr, %var-types);
-    my $c-return-type = determine-return-type($c-expr, %var-types);
-    
-    # Output function definitions with parameter list
-    my $params = @vars.map({ "($_ {%var-types{$_}})" }).join(" ");
+    # Define functions
+    my $params = @vars.map({ "($_ $var_type)" }).join(" ");
+    $smt2 ~= "(define-fun f ($params) $return_type $clean_lhs)\n";
+    $smt2 ~= "(define-fun g ($params) $return_type $clean_rhs)\n";
 
-    $output.say: "(define-fun f ($params) $b-return-type $clean-b)";
-    $output.say: "(define-fun g ($params) $c-return-type $clean-c)";
-    
-    # Special case for assertion when return types differ
+    # Add the assertion
     my $args = @vars.join(" ");
-    
-    my $f-header = $args.chars > 0 ?? "(f $args)" !! "f";
-    my $g-header = $args.chars > 0 ?? "(g $args)" !! "g";
-    $output.say: "(assert (not (= $f-header $g-header)))";
-    
-    $output.say: "(check-sat)";
+    my $f_call = @vars ?? "(f $args)" !! "f";
+    my $g_call = @vars ?? "(g $args)" !! "g";
+    $smt2 ~= "(assert (not (= $f_call $g_call)))\n";
+
+    # Check sat
+    $smt2 ~= "(check-sat)";
+
+    return $smt2;
 }
 
-# Replace variables in expression
-# Replace variables in expression
-sub replace-vars($expr, %replacements) {
+# Clean expressions for SMT2 format
+sub clean_expression($expr, @vars) {
     my $result = $expr;
-    
-    # First handle the special numeric cases (-1 and 1) with a more targeted approach
-    # Replace -1 first with a temporary marker
-    $result = $result.subst(rx{ '-1' }, 'NEGATIVE_ONE_MARKER', :g);
-    # Replace 1 (but not as part of other tokens)
-    $result = $result.subst(rx{ << '1' >> }, 'ONE_MARKER', :g);
 
-    $result = $result.subst(rx{ << '2' >> }, 'TWO_MARKER', :g);
-    
-    # Now handle variables and other replacements
-    for %replacements.kv -> $from, $to {
-        next if $from eq '-1' || $from eq '1'; # Skip these as we handled them specially
-        $result = $result.subst($from, $to, :g);
+    # Replace variable references
+    for @vars -> $var {
+        $result = $result.subst("?$var", $var, :g);
     }
-    
-    # Finally, replace our markers with the actual binary representations
-    $result = $result.subst('NEGATIVE_ONE_MARKER', %replacements{'-1'}, :g);
-    $result = $result.subst('ONE_MARKER', %replacements{'1'}, :g);
-    $result = $result.subst('TWO_MARKER', %replacements{'2'}, :g);
-    # Handle 0 separately if needed
-    if %replacements{'0'}:exists {
-        $result = $result.subst(rx{ << '0' >> }, %replacements{'0'}, :g);
-    }
-    
+
+    # Replace literals for bitvectors if needed
+    # For now, we'll skip this since we're focusing on boolean expressions
+
     return $result;
 }

@@ -1,14 +1,20 @@
-use egg::{Rewrite, rewrite as rw};
+use egg::{Rewrite, rewrite as rw, EGraph};
 use crate::{GrammarAnalysis, Grammar};
+
+pub type E = EGraph<Grammar, GrammarAnalysis>;
 
 pub struct RuleBuilder;
 
 impl RuleBuilder {
     fn eq_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
-        vec![
-            rw!("eq0"; "(= ?a ?b)" => "(= ?b ?a)"),
+        let rules = vec![
+            rw!("eq0a"; "(= ?a ?b)" => "(= ?b ?a)"),
             rw!("eq1"; "(= ?a ?a)" => "true"),
             rw!("eq2"; "(= ?a (not ?a))" => "false"),
+            rw!("eq3"; "(not (= ?a ?b))" => "(= (not ?a) ?b)"),
+            rw!("eq4"; "(= ?a true)" => "?a"),
+            rw!("eq5"; "(= ?a false)" => "(not ?a)"),
+
 
             // NOTE: These are for bitvec, do we need to seperate equivalence for bitvec and for boolean?
             // rw!("eq2"; "(= ?a (bvnot ?a))" => "false"),
@@ -19,7 +25,19 @@ impl RuleBuilder {
             // rw!("eq5"; "(= (bvxor ?a ?b) ?c)" => "(= ?b (bvxor ?c ?a))"),
             // rw!("eq6"; "(= (bvxor ?a ?b) ?c)" => "(= ?a (bvxor ?c ?b))"),
             // rw!("eq7"; "(= ?a (bvxor ?b ?c))" => "(= (bvxor ?a ?c) ?b)"),
-        ]
+
+            rw!("eq6"; "(= (and ?a ?b) ?a)" => "(or (= ?b true) (= ?a false))"),
+            rw!("eq6b"; "(or (= ?b true) (= ?a false))" => "(= (and ?a ?b) ?a)"),
+            rw!("eq7"; "(= (or ?a ?b) ?a)" => "(or (= ?b false) (= ?a true))"),
+            rw!("eq7b"; "(or (= ?b false) (= ?a true))" => "(= (or ?a ?b) ?a)"),
+
+            rw!("eqimp1"; "(= (=> ?a ?b) true)" => "(or (not ?a) ?b)"),
+            rw!("eqimp1b"; "(or (not ?a) ?b)" => "(= (=> ?a ?b) true)"),
+            rw!("eqimp2"; "(= (=> ?a ?b) false)" => "(and ?a (not ?b))"),
+            rw!("eqimp2b"; "(and ?a (not ?b))" => "(= (=> ?a ?b) false)"),
+        ];
+
+        rules
     }
 
     fn logical_rules() -> Vec<Rewrite<Grammar, GrammarAnalysis>> {
@@ -32,11 +50,27 @@ impl RuleBuilder {
             rw!("and3"; "(and ?a ?a)" => "?a"),
             rw!("and4"; "(and ?a true)" => "?a"),
             rw!("and6"; "(and ?a (or ?a ?b))" => "?a"),
+            rw!("and7"; "(and (or ?a ?b) (or ?a (not ?b)))" => "?a"),
+            rw!("and9"; "(and ?a (and ?a ?b))" => "(and ?a ?b)"),
+            rw!("and10"; "(and (and ?a ?b) (and (not ?a) ?c))" => "false"),
+            rw!("and11"; "(and ?a (and (not ?a) ?b))" => "false"),
+            rw!("and12"; "(and (and ?a ?b) (and ?a ?c))" => "(and ?a (and ?b ?c))"),
+            rw!("and13"; "(and (not (and ?a ?b)) (not (and ?a (not ?b))))" => "(not ?a)"),
+            rw!("and15"; "(and (and ?a ?b) (not (and ?a ?c)))" => "(and (and ?a ?b) (not ?c))"),
+            rw!("and16"; "(and ?a (not (and ?a ?b)))" => "(and ?a (not ?b))"),
+            rw!("and17"; "(and (=> ?a ?b) (=> ?b ?a))"     => "(= ?a ?b)"),
+
+            rw!("abs1"; "(and ?a (or ?a ?b))" => "?a"),
+            rw!("abs2"; "(or ?a (and ?a ?b))" => "?a"),
+
+            rw!("trans1"; "(and (= ?a ?b) (= ?b ?c))" => "(and (= ?a ?b) (= ?a ?c))"),
+            rw!("and8"; "(and (and (or ?a ?b) (or (not ?a) ?c)) (or ?b ?c)) " => "(and (or ?a ?b) (or (not  ?a) ?c))"),
+
+            rw!("and1"; "(and ?a (and ?b ?c))" => "(and (and ?a ?b) ?c)"),
+            rw!("and1b"; "(and (and ?a ?b) ?c)" => "(and ?a (and ?b ?c))"),
+            rw!("and5"; "(and ?a (or ?b ?c))" => "(or (and ?a ?b) (and ?a ?c))"),
+            rw!("and5b"; "(or (and ?a ?b) (and ?a ?c))" => "(and ?a (or ?b ?c))"),
         ]);
-        rules.extend([
-            rw!("and1"; "(and ?a (and ?b ?c))" <=> "(and (and ?a ?b) ?c)"),
-            rw!("and5"; "(and ?a (or ?b ?c))" <=> "(or (and ?a ?b) (and ?a ?c))"),
-        ].concat());
 
         // OR ruleos
         rules.extend([
@@ -45,22 +79,73 @@ impl RuleBuilder {
             rw!("or3"; "(or ?a true)"         => "true"),
             rw!("or4"; "(or ?a false)"         => "?a"),
             rw!("or6"; "(or ?a (and ?a ?b))" => "?a"),
+            rw!("or7"; "(or ?a (not ?a))"         => "true"),
+            rw!("or8"; "(or (and ?a ?b) (and ?a (not ?b)))" => "?a"),
+
+            rw!("ident3"; "(and (or ?a ?b) (or ?a (not ?b)))" => "?a"),
+            rw!("ident4"; "(or (and ?a ?b) (and ?a (not ?b)))" => "?a"),
+
+            rw!("nest1"; "(and (or ?a ?b) (or ?a ?c))" => "(or ?a (and ?b ?c))"),
+            rw!("nest2"; "(or (and ?a ?b) (and ?a ?c))" => "(and ?a (or ?b ?c))"),
+
+            rw!("var1"; "(and (not (= ?a ?b)) (= ?a ?b))" => "false"),
+            rw!("var2"; "(or (not (= ?a ?b)) (= ?a ?b))" => "true"),
+
+            rw!("simp1"; "(and (or ?a ?b) (or (not ?a) ?c))" => "(or (or (and ?b (not ?a)) (and ?b ?c)) (and ?a ?c))"),
+            rw!("simp2"; "(or (and ?a ?b) (and (not ?a) ?c))" => "(and (and (or ?b (not ?a)) (or ?b ?c)) (or ?a ?c))"),
+
+            rw!("or9"; "(or (or (and ?a ?b) (and (not ?a) ?c)) (and ?b ?c)) " => "(or (and ?a ?b) (and (not  ?a) ?c))"),
+
+            rw!("or1"; "(or ?a (or ?b ?c))" => "(or (or ?a ?b) ?c)"),
+            rw!("or1b"; "(or (or ?a ?b) ?c)" => "(or ?a (or ?b ?c))"),
+            rw!("or5"; "(or ?a (and ?b ?c))" => "(and (or ?a ?b) (or ?a ?c))"),
+            rw!("or5b"; "(and (or ?a ?b) (or ?a ?c))" => "(or ?a (and ?b ?c))"),
         ]);
-        rules.extend([
-            rw!("or1"; "(or ?a (or ?b ?c))" <=> "(or (or ?a ?b) ?c)"),
-            rw!("or5"; "(or ?a (and ?b ?c))" <=> "(and (or ?a ?b) (or ?a ?c))"),
-        ].concat());
 
         // Not rules
         rules.extend([
             rw!("not0"; "(not true)"     => "false"),
             rw!("not1"; "(not false)"    => "true"),
             rw!("not2"; "(not (not ?a))" => "?a"),
+            rw!("not3"; "(or (not ?a) (not ?b))" => "(not (and ?a ?b))"),
+            rw!("not4"; "(and (not ?a) (not ?b))" => "(not (or ?a ?b))"),
         ]);
+
+        // XOR rules
         rules.extend([
-            rw!("not3"; "(not (and ?a ?b))" <=> "(or (not ?a) (not ?b))"),
-            rw!("not4"; "(not (or ?a ?b))" <=> "(and (not ?a) (not ?b))"),
-        ].concat());
+            rw!("xor0"; "(or (or (and (and ?a (not ?b)) (not ?c)) (and (and (not ?a) ?b) (not ?c))) (or (and (and (not ?a) (not ?b)) ?c) (and (and ?a ?b) ?c)))"     => "(xor (xor ?a ?b) ?c)"),
+            rw!("xor1"; "(xor ?a ?a)"     => "false"),
+            rw!("xor2"; "(xor false ?a)"     => "?a"),
+            rw!("xor3"; "(xor ?a true)"     => "(not ?a)"),
+            rw!("xor4"; "(xor ?a ?b)"     => "(xor ?b ?a)"),
+            rw!("xor10"; "(xor (xor ?a ?b) ?b)"     => "?a"),
+
+            rw!("xor11"; "(xor (and ?a ?b) (and ?a (not ?b)))" => "?a"),
+            rw!("xor12"; "(xor (or ?a ?b) (and ?a ?b))" => "(xor ?a ?b)"),
+            rw!("xor7"; "(and (or ?a ?b) (not (and ?a ?b)))"     => "(xor ?a ?b)"),
+            rw!("xor8"; "(or (and ?a (not ?b)) (and (not ?a) ?b))" => "(xor ?a ?b)"),
+            rw!("xor8b"; "(= (or (and ?a (not ?b)) (and (not ?a) ?b)) (xor ?a ?b))" => "true"),
+            rw!("xor5"; "(= (not ?a) ?b)"     => "(xor ?a ?b)"),
+            rw!("demorgan_xor"; "(not (xor ?a ?b))" => "(= ?a ?b)"),
+            rw!("xor6"; "(not (xor ?a ?b))"     => "(= ?a ?b)"),
+            rw!("xor9"; "(xor ?a (xor ?b ?c))"     => "(xor (xor ?a ?b) ?c)"),
+        ]);
+
+        // Implies rules
+        rules.extend([
+            rw!("imp2"; "(=> false ?a)"     => "true"),
+            rw!("imp3"; "(=> ?a true)"     => "true"),
+            rw!("imp4"; "(=> true ?a)"     => "?a"),
+            rw!("imp7"; "(=> (and ?a ?b) ?c)" => "(or (=> ?a ?c) (=> ?b ?c))"),
+            rw!("imp8"; "(=> ?a (and ?b ?c))" => "(and (=> ?a ?b) (=> ?a ?c))"),
+            rw!("imp1"; "(=> ?a false)"     => "(not ?a)"),
+            rw!("imp5"; "(=> ?a ?b)"     => "(or (not ?a) ?b)"),
+            rw!("imp9"; "(or (not ?a) ?b)"     => "(=> ?a ?b)"),
+            rw!("imp6"; "(=> (or (or ?a ?b) ?c) ?d)"     => "(and (=> ?a ?d) (=> (or ?b ?c) ?d))"),
+            rw!("imp6b"; "(and (=> ?a ?d) (=> (or ?b ?c) ?d))"     => "(=> (or (or ?a ?b) ?c) ?d)"),
+            rw!("negpush1"; "(not (=> ?a ?b))" => "(and ?a (not ?b))"),
+            rw!("negpush1b"; "(and ?a (not ?b))" => "(not (=> ?a ?b))"),
+        ]);
 
         rules
     }
@@ -312,11 +397,16 @@ impl RuleBuilder {
         ]
     }
 
-
-    // fn is_not_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut EGraph<Grammar, GrammarAnalysis>, Id, &Subst) -> bool {
+    // fn is_not_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut E, Id, &Subst) -> bool {
     //     let var1 = var.parse().unwrap();
     //     let var2 = var2.parse().unwrap();
     //     move |_egraph, _, subst| subst[var1] != subst[var2]
+    // }
+
+    // fn is_equal(var: &'static str, var2: &'static str) -> impl Fn(&mut E, Id, &Subst) -> bool {
+    //     let var1 = var.parse().unwrap();
+    //     let var2 = var2.parse().unwrap();
+    //     move |_egraph, _, subst| subst[var1] == subst[var2]
     // }
 
     // fn is_not_zero(var: &'static str,) -> impl Fn(&mut EGraph<Grammar, GrammarAnalysis>, Id, &Subst) -> bool {
