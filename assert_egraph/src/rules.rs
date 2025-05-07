@@ -357,10 +357,12 @@ impl RuleBuilder {
             rw!("or_op"; "(bvor (bvand ?a ?b) (bvor ?a ?b))" => "(bvor ?a ?b)"),
             rw!("and_op"; "(bvand (bvand ?a ?b) (bvor ?a ?b))" => "(bvand ?a ?b)"),
             rw!("sub_op"; "(bvsub (bvadd ?a ?b) (bvor ?a ?b))" => "(bvand ?a ?b)"),
+            rw!("dmorgan"; "(bvnot (bvand ?a ?b))" => "(bvor (bvnot ?a) (bvnot ?b))"),
+            rw!("dmorgan2"; "(bvor (bvnot ?a) (bvnot ?b))" => "(bvnot (bvand ?a ?b))"),
         ]);
-        rules.extend([
-            rw!("dmorgan"; "(bvnot (bvand ?a ?b))" <=> "(bvor (bvnot ?a) (bvnot ?b))"),
-        ].concat());
+        // rules.extend([
+        //     rw!("dmorgan"; "(bvnot (bvand ?a ?b))" <=> "(bvor (bvnot ?a) (bvnot ?b))"),
+        // ].concat());
 
 
         // Special
