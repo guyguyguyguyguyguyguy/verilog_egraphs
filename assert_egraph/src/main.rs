@@ -92,8 +92,7 @@ fn main() -> Result<()> {
     
     let e = EGraph::new(GrammarAnalysis);
     let mut runner = Runner::default().with_egraph(e.clone());
-    let mut runner_conj = Runner::default().with_egraph(e);
-    
+
     let content = fs::read_to_string(&args.file)
         .map_err(|e| format!("Could not read file: {e}"))?;
     
@@ -107,67 +106,26 @@ fn main() -> Result<()> {
             Assertion::Unparsed(s) => Either::Right(s),
         });
 
-    println!("parsed: {}, unparsed: {}", parsed.len(), _unparsed.len());
-    let mut ids: Vec<(Id, String)> = vec![];
-
     for assertion in &parsed {
         match assertion.parse() {
             Ok(a) => {
                 let id = runner.egraph.add_expr(&a);
-                ids.push((id, a.to_string()));
                 runner.egraph.set_analysis_data(id, true);
             },
             Err(e) => return Err(format!("Assertion not supported by grammar: {e}").into()),
         }
     }
 
+    let before_num = runner.egraph.classes().filter(|c| c.data).count();
+
     runner = runner
         .with_time_limit(Duration::new(args.timeout, 0))
         .with_node_limit(100_000)
         .run(&RuleBuilder::all_rules());
 
-   println!("Unique assertions before: {}\nUnique asserttionas after: {}",
-            ids.clone().into_iter().map(|(id, _)| id).collect::<HashSet<_>>().len(),
-            runner.egraph
-               .classes()
-               .filter(|c| c.data)
-               .count()
-   );
-
-
-    runner.print_report();
-
-    // println!("{:?}", runner.egraph.dump());
-
-    if let Some(id) = runner.egraph.lookup_expr(&"(xor II131 II130)".parse().unwrap()) {
-        ids.iter().for_each(|(_id, a)| {
-            let iid = runner.egraph.find(*_id);
-            if id == iid {
-                println!("{}", a);
-            }
-        });
-    }
-
-   //  let conjunc = combine_strings_recursive(parsed.clone());
-   //  let id = runner_conj.egraph.add_expr(&conjunc.parse().unwrap());
-   //  runner_conj.egraph.set_analysis_data(id, true);
-
-   // runner_conj = runner_conj
-   //     .with_time_limit(Duration::new(args.timeout, 0))
-   //     .with_node_limit(100_000)
-   //     .run(&RuleBuilder::all_rules());
-
-   // let extractor = Extractor::new(&runner_conj.egraph, AstSize);
-   // let (_, best) = extractor.find_best(id);
-   // let rewritten = best.to_string();
-
-
-   // println!("Before conjunction: {} characters\nAfter conjunction: {} characters\nAfter rewrite: {} characters",
-   //          parsed.join("").chars().count(),
-   //          conjunc.chars().count(),
-   //          rewritten.chars().count()
-   // );
-   // runner_conj.print_report();
+    let after_num = runner.egraph.classes().filter(|c| c.data).count();
+    println!("Assertions before: {:<20}", before_num);
+    println!("Assertions after:  {:<20}", after_num);
 
     let unique_assertions = runner.egraph
         .classes()
