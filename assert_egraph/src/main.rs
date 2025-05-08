@@ -2,15 +2,15 @@ mod parser;
 mod rules;
 mod utils;
 
-#[allow(unused_imports)]
-use std::{collections::HashSet, fs};
+use std::error::Error;
 use std::io::prelude::*;
 use std::time::Duration;
-use std::error::Error;
+#[allow(unused_imports)]
+use std::{collections::HashSet, fs};
 
 use clap::Parser;
 use egg::*;
-use itertools::{Itertools, Either};
+use itertools::{Either, Itertools};
 
 use parser::{parse_assertions, Assertion};
 use rules::{RuleBuilder, E};
@@ -75,43 +75,41 @@ impl Analysis<Grammar> for GrammarAnalysis {
 #[command(version, about, long_about = None)]
 struct Args {
     /// Input file path
-    #[arg(short, long, default_value="../SygusResult.sl")]
+    #[arg(short, long, default_value = "../SygusResult.sl")]
     file: String,
-    
+
     /// Enable verbose output
-    #[arg(short, long, default_value="assertionOutput.out")]
+    #[arg(short, long, default_value = "assertionOutput.out")]
     output: String,
 
     /// EGraph rewrite timeout
-    #[arg(short, long, default_value="30")]
+    #[arg(short, long, default_value = "30")]
     timeout: u64,
 }
 
 fn main() -> Result<()> {
+    println!("Running e-graph");
     let args = Args::parse();
-    
+
     let e = EGraph::new(GrammarAnalysis);
     let mut runner = Runner::default().with_egraph(e.clone());
 
-    let content = fs::read_to_string(&args.file)
-        .map_err(|e| format!("Could not read file: {e}"))?;
-    
-    let assertions = parse_assertions(&mut content.as_str())
-        .map_err(|_| "Could not parse file")?;
-    
-    let (parsed, _unparsed): (Vec<_>, Vec<_>) = assertions
-        .into_iter()
-        .partition_map(|a| match a {
-            Assertion::Parsed(s) => Either::Left(s),
-            Assertion::Unparsed(s) => Either::Right(s),
-        });
+    let content =
+        fs::read_to_string(&args.file).map_err(|e| format!("Could not read file: {e}"))?;
+
+    let assertions = parse_assertions(&mut content.as_str()).map_err(|_| "Could not parse file")?;
+
+    let (parsed, _unparsed): (Vec<_>, Vec<_>) = assertions.into_iter().partition_map(|a| match a {
+        Assertion::Parsed(s) => Either::Left(s),
+        Assertion::Unparsed(s) => Either::Right(s),
+    });
 
     for assertion in &parsed {
         match assertion.parse() {
             Ok(a) => {
                 let id = runner.egraph.add_expr(&a);
                 runner.egraph.set_analysis_data(id, true);
-            },
+            }
             Err(e) => return Err(format!("Assertion not supported by grammar: {e}").into()),
         }
     }
@@ -127,7 +125,8 @@ fn main() -> Result<()> {
     println!("Assertions before: {:<20}", before_num);
     println!("Assertions after:  {:<20}", after_num);
 
-    let unique_assertions = runner.egraph
+    let unique_assertions = runner
+        .egraph
         .classes()
         .filter(|c| c.data)
         .map(|c| runner.egraph.id_to_expr(c.id))
