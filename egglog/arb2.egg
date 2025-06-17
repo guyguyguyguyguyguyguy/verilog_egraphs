@@ -1,0 +1,23 @@
+(datatype Expr
+	(Var String) 
+    (Bool bool)
+    (Not Expr)
+    (And Expr Expr)
+    (Or Expr Expr)
+    (Eq Expr Expr))
+
+(Not (And (Var "gnt1") (And (Var "req2") (Var "state"))))
+(Or (Var "gnt1") (Eq (Var "gnt2") (Var "req2")))
+(Eq (Var "gnt2") (And (Var "gnt2") (Var "req2")))
+(Not (And (Var "gnt1") (Var "gnt2")))
+(Or (Var "req1") (Eq (Var "gnt2") (Var "req2")))
+(Eq (Var "gnt1") (And (Var "gnt1") (Var "req1")))
+
+(rule (
+	(Not ?a)
+    (And ?a ?b)
+)(
+  (union ?b (Bool true))
+))
+
+(run 1)

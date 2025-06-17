@@ -1,0 +1,30 @@
+(datatype Expr
+	(Var String) 
+    (Bool bool)
+    (Not Expr)
+    (And Expr Expr)
+    (Or Expr Expr)
+    (Eq Expr Expr))
+
+(Or (Var "N10") (Var "N22"))
+(Not (And (Var "N11") (Eq (Var "N16") (Var "N2"))))
+(Or (Var "N1") (Var "N10"))
+(Or (Var "N10") (Var "N3"))
+(Or (Var "N16") (Not (Eq (Var "N19") (Var "N7"))))
+(Or (Var "N19") (Var "N7"))
+(Or (Var "N11") (Var "N19"))
+(Or (Var "N16") (Var "N2"))
+(Eq (Var "N22") (And (Var "N22") (Or (Var "N23") (Var "N3"))))
+(Or (Var "N11") (Var "N16"))
+(Or (Var "N11") (Not (Var "N23")))
+(Or (Var "N16") (Var "N22"))
+(Or (Var "N11") (Var "N6"))
+
+(rule (
+	(Not ?a)
+    (And ?a ?b)
+)(
+  (union ?b (Bool true))
+))
+
+(run 1)
