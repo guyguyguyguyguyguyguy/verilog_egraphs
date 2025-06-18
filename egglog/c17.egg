@@ -6,25 +6,128 @@
     (Or Expr Expr)
     (Eq Expr Expr))
 
-(Or (Var "N10") (Var "N22"))
-(Not (And (Var "N11") (Eq (Var "N16") (Var "N2"))))
-(Or (Var "N1") (Var "N10"))
-(Or (Var "N10") (Var "N3"))
-(Or (Var "N16") (Not (Eq (Var "N19") (Var "N7"))))
-(Or (Var "N19") (Var "N7"))
-(Or (Var "N11") (Var "N19"))
-(Or (Var "N16") (Var "N2"))
-(Eq (Var "N22") (And (Var "N22") (Or (Var "N23") (Var "N3"))))
-(Or (Var "N11") (Var "N16"))
-(Or (Var "N11") (Not (Var "N23")))
-(Or (Var "N16") (Var "N22"))
-(Or (Var "N11") (Var "N6"))
+(relation Root (Expr))
+(relation True (Expr))
+(relation False (Expr))
 
-(rule (
-	(Not ?a)
-    (And ?a ?b)
-)(
-  (union ?b (Bool true))
-))
+(Root (Or (Var "N16") (Var "N2")) )
+(Root (Or (Var "N16") (Not (Eq (Var "N19") (Var "N7")))) )
+(Root (Or (Var "N11") (Var "N6")) )
+(Root (Or (Var "N11") (Var "N19")) )
+(Root (Or (Var "N10") (Var "N3")) )
+(Root (Or (Var "N10") (Var "N22")) )
+(Root (Or (Var "N11") (Var "N16")) )
+(Root (Or (Var "N11") (Not (Var "N23"))) )
+(Root (Or (Var "N19") (Var "N7")) )
+(Root (Not (And (Var "N11") (Eq (Var "N16") (Var "N2")))) )
+(Root (Eq (Var "N22") (And (Var "N22") (Or (Var "N23") (Var "N3")))) )
+(Root (Or (Var "N16") (Var "N22")) )
+(Root (Or (Var "N1") (Var "N10")) )
 
-(run 1)
+(rule
+ ((Not ?a))
+ ((False ?a)))
+
+(rule
+  ((= ?c (And ?a ?b))
+   (False ?a))
+  ((False ?c)))
+
+(rule 
+ ((= ?c (Not ?a))
+  (False ?a))
+ ((True ?c)))
+
+(rule
+ ((Root (Not ?a)))
+ ((False ?a)))
+
+(rule
+ ((True (Not ?a)))
+ ((False ?a)))
+
+(rule 
+ ((True (And ?a ?b)))
+ ((True ?a) (True ?b)))
+
+(rule
+ ((Root ?a))
+ ((True ?a)))
+
+(rule
+ ((Or ?a ?b)
+  (False ?a))
+ ((True ?b)))
+
+(rule
+ ((Eq ?a ?b)
+  (False ?a))
+ ((False ?b)))
+
+(rule
+ ((Eq ?a ?b)
+  (True ?a))
+ ((True ?b)))
+
+(rule
+ ((True (Eq ?a (And ?a ?b)))
+  (True ?a))
+ ((True ?b)))
+
+(rule
+ ((= ?c (Eq ?a (Or ?a ?b)))
+  (True ?c))
+ ((union ?a ?c)))
+
+(rule
+ ((False ?a)
+  (= ?c (And ?a ?b)))
+ ((False ?c)))
+
+(rule
+ ((True ?a)
+  (= ?c (Or ?a ?b)))
+ ((True ?c)))
+
+(rule
+ ((True ?a)
+  (= ?c (Not ?a)))
+ ((False ?c)))
+
+(rule
+ ((False ?a)
+  (= ?c (Not ?a)))
+ ((True ?c)))
+
+(rule 
+ ((= ?c (And ?a ?b))
+  (Root ?c)
+  (True ?a))
+ ((union ?c ?b)))
+
+(rule
+ ((= ?c (Or ?a ?b))
+  (Root ?c)
+  (False ?a))
+ ((union ?c ?b)))
+
+(rule
+ ((= ?c (Eq ?a ?b))
+  (Root ?c)
+  (True ?a))
+ ((union ?c ?b)))
+
+(rewrite (Or ?a ?b) (Or ?b ?a))
+(rewrite (And ?a ?b) (And ?b ?a))
+(rewrite (Eq ?a ?b) (Eq ?b ?a))
+
+;(print "Sizes before running:")
+(print-size Root)
+(print-size True)
+(print-size False)
+
+(run 20)
+
+(print-size Root)
+(print-size True)
+(print-size False)

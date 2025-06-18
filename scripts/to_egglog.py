@@ -35,16 +35,120 @@ output = f"""(datatype Expr
     (Or Expr Expr)
     (Eq Expr Expr))
 
-{'\n'.join(assertions)}
+(relation Root (Expr))
+(relation True (Expr))
+(relation False (Expr))
 
-(rule (
-	(Not ?a)
-    (And ?a ?b)
-)(
-  (union ?b (Bool true))
-))
+{'\n'.join(f'(Root {a} )' for a in assertions)}
 
-(run 1)"""
+(rule
+ ((Not ?a))
+ ((False ?a)))
+
+(rule
+  ((= ?c (And ?a ?b))
+   (False ?a))
+  ((False ?c)))
+
+(rule 
+ ((= ?c (Not ?a))
+  (False ?a))
+ ((True ?c)))
+
+(rule
+ ((Root (Not ?a)))
+ ((False ?a)))
+
+(rule
+ ((True (Not ?a)))
+ ((False ?a)))
+
+(rule 
+ ((True (And ?a ?b)))
+ ((True ?a) (True ?b)))
+
+(rule
+ ((Root ?a))
+ ((True ?a)))
+
+(rule
+ ((Or ?a ?b)
+  (False ?a))
+ ((True ?b)))
+
+(rule
+ ((Eq ?a ?b)
+  (False ?a))
+ ((False ?b)))
+
+(rule
+ ((Eq ?a ?b)
+  (True ?a))
+ ((True ?b)))
+
+(rule
+ ((True (Eq ?a (And ?a ?b)))
+  (True ?a))
+ ((True ?b)))
+
+(rule
+ ((= ?c (Eq ?a (Or ?a ?b)))
+  (True ?c))
+ ((union ?a ?c)))
+
+(rule
+ ((False ?a)
+  (= ?c (And ?a ?b)))
+ ((False ?c)))
+
+(rule
+ ((True ?a)
+  (= ?c (Or ?a ?b)))
+ ((True ?c)))
+
+(rule
+ ((True ?a)
+  (= ?c (Not ?a)))
+ ((False ?c)))
+
+(rule
+ ((False ?a)
+  (= ?c (Not ?a)))
+ ((True ?c)))
+
+(rule 
+ ((= ?c (And ?a ?b))
+  (Root ?c)
+  (True ?a))
+ ((union ?c ?b)))
+
+(rule
+ ((= ?c (Or ?a ?b))
+  (Root ?c)
+  (False ?a))
+ ((union ?c ?b)))
+
+(rule
+ ((= ?c (Eq ?a ?b))
+  (Root ?c)
+  (True ?a))
+ ((union ?c ?b)))
+
+(rewrite (Or ?a ?b) (Or ?b ?a))
+(rewrite (And ?a ?b) (And ?b ?a))
+(rewrite (Eq ?a ?b) (Eq ?b ?a))
+
+;(print "Sizes before running:")
+(print-size Root)
+(print-size True)
+(print-size False)
+
+(run 20)
+
+(print-size Root)
+(print-size True)
+(print-size False)
+"""
 
 
 out_file = file.removesuffix('.sl').removeprefix('Sygus/')
