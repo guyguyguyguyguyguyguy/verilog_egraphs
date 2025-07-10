@@ -7,6 +7,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import gc
+import traceback
 
 
 
@@ -24,6 +25,8 @@ def get_defined_funs(file):
 
 def find_max_independent_set(data):
     keys = list(data.keys())
+    if len(keys) == 0:
+        return {}
     g = ig.Graph()
     g.add_vertices(len(keys))
 
@@ -38,6 +41,7 @@ def find_max_independent_set(data):
 
     g.add_edges(edges)
     complement = g.complementer()
+    return g
     max_clique = complement.largest_cliques()[0]
     return {keys[i] for i in max_clique}
 
@@ -73,6 +77,7 @@ def plot_assertion_sizes(files, befores, afters, inc, timeout):
     autolabel(rects2)
     fig.tight_layout()
     plt.savefig(f"assertion_minimisation_{'inc' if inc else ''}_{timeout}.pdf")
+
     plt.show()
 
 def generate_vars(expr, d):
@@ -128,12 +133,12 @@ def incremental_assertion_check(file = 'Sygus/ibex_controller.sl'):
     matches = get_defined_funs(file)
 
     d = {}
-    m = iter(matches)
-    assertion = gen_vars_get_fun(next(m), d)
-    A = set([assertion])
+    fst, *rst = matches
+    first_assertion = gen_vars_get_fun(fst, d)
+    A = {first_assertion}
     all_unique_assertions = A.copy()
-    for f in m:
-        assertion = gen_vars_get_fun(next(m), d)
+    for f in rst:
+        assertion = gen_vars_get_fun(f, d)
         if assertion in A:
             continue
         all_unique_assertions.add(assertion)
@@ -169,7 +174,7 @@ def run_worker(filepath, incremental, queue):
             result = assertion_minimisation(filepath)
         queue.put((filepath, result[0], result[1]))
     except Exception as e:
-        print(e)
+        traceback.print_exc()
         queue.put((filepath, None, None))
 
 def run_all(incremental: bool = False, timeout: int = 300):
