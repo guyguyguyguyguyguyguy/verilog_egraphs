@@ -214,3 +214,20 @@ def run_all(incremental: bool = False, timeout: int = 300):
         gc.collect()
 
     plot_assertion_sizes(files, befores, afters, incremental, timeout)
+
+"""
+What we want to do given a set of assertions A:
+    => Give the algorithm(s) and complexity of finding the actual minimal set A' such that A <=> A'
+    => Give assurences about the assertion minimisation algorithm
+        -> It gives an A' such that A' <=> A
+        -> When does it minimise
+        -> How well does it minimise
+        -> etc.
+
+https://theory.stanford.edu/~aiken/publications/papers/cav12b.pdf
+https://arxiv.org/pdf/1104.2312
+https://en.wikipedia.org/wiki/Set_cover_problem
+https://cstheory.stackexchange.com/questions/4238/complexity-of-finding-minimal-cover-of-fds
+https://users.cms.caltech.edu/~umans/papers/BU07.pdf
+https://dev.to/hebashakeel/minimal-cover-417l
+"""
