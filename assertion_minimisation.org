@@ -1,0 +1,49 @@
+#+title: Assertion Minimisation
+
+**** Complexity class
+
+Given a set of assertions, $A$ of size $N$, is there a subset $S \subseteq A$ such that for all assertions $b \in A \setminus S$, $S \imples b$.
+
+Also can be formulated as:
+$\exists S \subseteq A~~\forall b \in (A \setminus S) \text{ such that } S \models b$
+
+Where checking $S \models b$ is co-NP-complete ($\Pi_1^P$). Therefore the whole problem is $\text{NP}^{\text{coNP}}$ $\Sigma_2^P$ since we have a $\exists\forall$ with an inner co-NP predicate.
+
+***** Minimisation for generalised boolean formula is also $\Sigma_2^p$-complete.
+
+This also holds for SMT formula so long as we stick to decidable fragments/theories.
+
+***** Program synthesis is in general $\Sigma_3^0$ as it may be over an infinite domain
+
+$\Sigma_2^P$ is a subclass of $\Sigma_3^0$, specifically containing problems that are decideable in bounded (polynomial) time.
+
+Depending on the domain/grammar/decidability check, program synthesis may also be $\Sigma_2^p$. For decidable theories and a finite grammar, this is often (always?) the case, eg. bitvec and LIA.
+
+***** This task is as hard as program synthesis over the same theory (assuming finite grammar)
+
+*** Actual minimisation algorithms
+
+**** Methods
+
+***** Naive
+
+Given a set of assertions A, the naive algorithm is as follows:
++ Starting at size 1, for every combination of assertions of this size, check if the combination implies all other assertions.
++ If no combination of a given size implies all other assertions, increase the size and try again
+
+In the worst case, for an A of size N, we would check all sized combinations up to n. This is equivalent to generating and checking the powerset of A and checking each subset, a,  against A-a, b. Where a has size K and b has size N-K, M. Using the powerset gives us a time complexity of $O(N * 2^N)$, combined with checking for each combination we get $O(T_{imp} * N * 2^N)$
+
+***** Prime implication extraction
+
+
+
+*** Our algorithm
+
+**** Method
+
+**** Assurences
+
+
+* Using Maximum universal set to extract the variables to use for counterexamples
+
+Use (sub-)set the variables that are universally quantified over in the MUS of the assertion set A for counterexamples.

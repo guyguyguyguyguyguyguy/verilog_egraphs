@@ -9,6 +9,7 @@ import numpy as np
 import gc
 import traceback
 
+from io import StringIO
 
 
 # Regex definitions
@@ -23,6 +24,8 @@ def get_defined_funs(file):
         matches = {m for m in matches}
     return matches
 
+# TODO: Can also formulate this as a minimum cover problem?
+#   => Are these equivalent?
 def find_max_independent_set(data):
     keys = list(data.keys())
     if len(keys) == 0:
@@ -41,7 +44,6 @@ def find_max_independent_set(data):
 
     g.add_edges(edges)
     complement = g.complementer()
-    return g
     max_clique = complement.largest_cliques()[0]
     return {keys[i] for i in max_clique}
 
@@ -95,6 +97,8 @@ def gen_vars_get_fun(expr, d):
     return func_pat.search(expr).group(1)
 
 
+m = Mistral()
+
 def check_expr_incremental(new_expr, exprs, d):
     assertion = f"""
     (assert (not
@@ -106,6 +110,10 @@ def check_expr_incremental(new_expr, exprs, d):
     z3_assertion = z3.parse_smt2_string(assertion, decls=d)
     s = z3.Solver()
     s.add(z3_assertion)
+
+    mus = m.solve(s.sexpr())
+    print(mus)
+
     match s.check():
         case z3.sat:
             exprs.add(new_expr)
@@ -231,3 +239,115 @@ https://cstheory.stackexchange.com/questions/4238/complexity-of-finding-minimal-
 https://users.cms.caltech.edu/~umans/papers/BU07.pdf
 https://dev.to/hebashakeel/minimal-cover-417l
 """
+
+#==============================================================================
+from pysmt.exceptions import SolverReturnedUnknownResultError
+from pysmt.shortcuts import Bool, get_model, Not, Solver
+#==============================================================================
+def get_qmodel(x_univl, formula, maxiters=None, solver_name=None, verbose=False):
+    """
+        A simple 2QBF CEGAR implementation for SMT.
+    """
+
+    x_univl = set(x_univl)
+    x_exist = formula.get_free_variables() - x_univl
+
+    with Solver(name=solver_name) as asolver:
+        asolver.add_assertion(Bool(True))
+        iters = 0
+
+        while maxiters is None or iters <= maxiters:
+            iters += 1
+
+            amodel = asolver.solve()
+            if not amodel:
+                return None
+            else:
+                cand = {v: asolver.get_value(v) for v in x_exist}
+                subform = formula.substitute(cand).simplify()
+                if verbose:
+                    print('c qsolve cand{0}: {1}'.format(iters, cand))
+
+                cmodel = get_model(Not(subform), solver_name=solver_name)
+                if cmodel is None:
+                    return cand
+                else:
+                    coex = {v: cmodel[v] for v in x_univl}
+                    subform = formula.substitute(coex).simplify()
+                    if verbose:
+                        print('c qsolve coex{0}: {1}'.format(iters, coex))
+
+                    asolver.add_assertion(subform)
+
+        raise SolverReturnedUnknownResultError
+
+#==============================================================================
+from pysmt.smtlib.parser import SmtLibParser
+from pysmt.shortcuts import Not, ForAll, is_sat, is_unsat, get_model, qelim
+#==============================================================================
+class Mistral:
+    """
+        Mistral solver class.
+    """
+
+    def __init__(self, simplify=True):
+        """
+            Constructor.
+        """
+
+        self.simplify = simplify
+        self.cost = 0
+        self.sname = 'z3'
+
+    def solve(self, query):
+        """
+            This method implements find_msa() procedure from Fig. 2
+            of the dillig-cav12 paper.
+        """
+
+        self.script = SmtLibParser().get_script(StringIO(query))
+        self.formula = self.script.get_last_formula()
+        self.formula = self.formula.simplify()
+
+        self.fvars = self.formula.get_free_variables()
+
+        # testing if formula is satisfiable
+        if get_model(self.formula, solver_name=self.sname) == None:
+            return None
+
+        mus = self.compute_mus(frozenset([]), self.fvars, 0)
+        return mus
+
+    def compute_mus(self, X, fvars, lb):
+        """
+            Algorithm implements find_mus() procedure from Fig. 1
+            of the dillig-cav12 paper.
+        """
+
+        if not fvars or len(fvars) <= lb:
+            return frozenset()
+
+        best = set()
+        x = frozenset([next(iter(fvars))])  # should choose x in a more clever way
+
+        if self.get_model_forall(X.union(x)):
+            Y = self.compute_mus(X.union(x), fvars - x, lb - 1)
+
+            cost_curr = len(Y) + 1
+            if cost_curr > lb:
+                best = Y.union(x)
+                lb = cost_curr
+
+        Y = self.compute_mus(X, fvars - x, lb)
+        if len(Y) > lb:
+            best = Y
+
+        return best
+
+    def get_model_forall(self, x_univl):
+        """
+            Calls either pysmt.shortcuts.get_model() or get_qmodel().
+        """
+
+        return get_qmodel(x_univl, self.formula, solver_name=self.sname,
+                verbose=False)
