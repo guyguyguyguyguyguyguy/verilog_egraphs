@@ -135,11 +135,9 @@ class PowerLattice:
         self._base = frozenset(range(len(self.base)))
         self.curr_best = (self._base, len(self.base))
         self.tried = set()
-        self.children = {}
         self.rel_lattice = self.generate_rel_lattice(frozenset(self._base), len(self.base))
 
-    @staticmethod
-    def get_defined_funs(file):
+    def get_defined_funs(self, file):
         with open(file, 'r') as f:
             content = f.read()
             matches = def_pat.findall(content)
@@ -160,28 +158,20 @@ class PowerLattice:
         return func_pat.search(expr).group(1)
 
     def generate_rel_lattice(self, A: frozenset, l) -> (int, set[frozenset]):
-        k = l - 1
-        self.children[l] = {}
-        lattice = {frozenset(t) for t in combinations(A, k)}
-        self.children[l][A] = lattice
-
-        return (lattice, k)
+        lattice = {frozenset(t) for t in combinations(A, l-1)}
+        return (lattice, l-1)
 
     # This follows branches with no backtracking, can be improved in terms of minimality if we give some backtracking
+    # This links to antichains
+    # Each rel_lattice should be an antichain
     def _minimise(self):
         while True:
             curr_best, l = self.curr_best
             print(f"current best level: {l}")
             level = l - 1
             if level != self.rel_lattice[1]:
-                if l in self.children:
-                    del self.children[l]
                 self.rel_lattice = self.generate_rel_lattice(*self.curr_best)
-            available = self.children[l][curr_best] - self.tried or self.rel_lattice[0] -self.tried
-
-            if not available:
-                available = self.rel_lattice[0] - self.tried
-
+            available = self.rel_lattice[0] - self.tried
             if not available:
                 return
 
@@ -195,8 +185,6 @@ class PowerLattice:
             else:
                 self.mark_children(next_can, level-1)
             self.tried.add(next_can)
-        else:
-            self.ensure_equal()
 
     def ensure_equal(self):
         best_ass = [self.base[i] for i in self.curr_best[0]]
@@ -251,15 +239,14 @@ class PowerLattice:
 
 # Regex definitions
 def_pat = re.compile(r'.*define-fun.*')
-func_pat = re.compile(r'Bool\s+(.*)\)')
+func_pat = re.compile(r'(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)')
 var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
 
 def get_defined_funs(file):
     with open(file, 'r') as f:
         content = f.read()
         matches = def_pat.findall(content)
-        matches = {m for m in matches}
-    return matches
+    return set(matches)
 
 # TODO: Can also formulate this as a minimum cover problem?
 #   => Are these equivalent?
@@ -479,4 +466,3 @@ https://cstheory.stackexchange.com/questions/4238/complexity-of-finding-minimal-
 https://users.cms.caltech.edu/~umans/papers/BU07.pdf
 https://dev.to/hebashakeel/minimal-cover-417l
 """
-
