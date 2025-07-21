@@ -337,7 +337,7 @@ def check_expr_incremental(new_expr, exprs, d):
     s = z3.Solver()
     s.add(z3_assertion)
 
-    mus = m.solve(s.sexpr())
+    mus = m.solve(s.to_smt2())
     print(mus)
 
     match s.check():
