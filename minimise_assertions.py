@@ -9,238 +9,114 @@ import numpy as np
 import gc
 import traceback
 
-from io import StringIO
-
-# Taken from Mint -> https://alexeyignatiev.github.io/software/mintt ijk/
-#==============================================================================
-from pysmt.exceptions import SolverReturnedUnknownResultError
-from pysmt.shortcuts import Bool, get_model, Not, Solver
-#==============================================================================
-def get_qmodel(x_univl, formula, maxiters=None, solver_name=None, verbose=False):
-    """
-        A simple 2QBF CEGAR implementation for SMT.
-    """
-
-    x_univl = set(x_univl)
-    x_exist = formula.get_free_variables() - x_univl
-
-    with Solver(name=solver_name) as asolver:
-        asolver.add_assertion(Bool(True))
-        iters = 0
-
-        while maxiters is None or iters <= maxiters:
-            iters += 1
-
-            amodel = asolver.solve()
-            if not amodel:
-                return None
-            else:
-                cand = {v: asolver.get_value(v) for v in x_exist}
-                subform = formula.substitute(cand).simplify()
-                if verbose:
-                    print('c qsolve cand{0}: {1}'.format(iters, cand))
-
-                cmodel = get_model(Not(subform), solver_name=solver_name)
-                if cmodel is None:
-                    return cand
-                else:
-                    coex = {v: cmodel[v] for v in x_univl}
-                    subform = formula.substitute(coex).simplify()
-                    if verbose:
-                        print('c qsolve coex{0}: {1}'.format(iters, coex))
-
-                    asolver.add_assertion(subform)
-
-        raise SolverReturnedUnknownResultError
-
-#==============================================================================
-from pysmt.smtlib.parser import SmtLibParser
-from pysmt.shortcuts import Not, ForAll, is_sat, is_unsat, get_model, qelim
-#==============================================================================
-class Mistral:
-    """
-        Mistral solver class.
-    """
-
-    def __init__(self, simplify=True):
-        """
-            Constructor.
-        """
-
-        self.simplify = simplify
-        self.cost = 0
-        self.sname = 'z3'
-
-    def solve(self, query):
-        """
-            This method implements find_msa() procedure from Fig. 2
-            of the dillig-cav12 paper.
-        """
-
-        self.script = SmtLibParser().get_script(StringIO(query))
-        self.formula = self.script.get_last_formula()
-        self.formula = self.formula.simplify()
-
-        self.fvars = self.formula.get_free_variables()
-
-        # testing if formula is satisfiable
-        if get_model(self.formula, solver_name=self.sname) == None:
-            return None
-
-        mus = self.compute_mus(frozenset([]), self.fvars, 0)
-        return mus
-
-    def compute_mus(self, X, fvars, lb):
-        """
-            Algorithm implements find_mus() procedure from Fig. 1
-            of the dillig-cav12 paper.
-        """
-
-        if not fvars or len(fvars) <= lb:
-            return frozenset()
-
-        best = set()
-        x = frozenset([next(iter(fvars))])  # should choose x in a more clever way
-
-        if self.get_model_forall(X.union(x)):
-            Y = self.compute_mus(X.union(x), fvars - x, lb - 1)
-
-            cost_curr = len(Y) + 1
-            if cost_curr > lb:
-                best = Y.union(x)
-                lb = cost_curr
-
-        Y = self.compute_mus(X, fvars - x, lb)
-        if len(Y) > lb:
-            best = Y
-
-        return best
-
-    def get_model_forall(self, x_univl):
-        """
-            Calls either pysmt.shortcuts.get_model() or get_qmodel().
-        """
-
-        return get_qmodel(x_univl, self.formula, solver_name=self.sname,
-                verbose=False)
-
 from itertools import combinations, chain
 from collections import defaultdict
 import random
 
+def_pat = re.compile(r'.*define-fun.*')
+func_pat = re.compile(r'(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)')
+var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
+
+
+import z3
+from itertools import combinations
+
 class PowerLattice:
-    def __init__(self, file):
+    def __init__(self, funs):
         self.decls = {}
-        self.base = list(set(map(self.gen_vars_get_fun, self.get_defined_funs(file))))
+        defined_funs, base = funs
+        self.base = list(base)
+        self.generate_vars(defined_funs)
+
         self._base = frozenset(range(len(self.base)))
         self.curr_best = (self._base, len(self.base))
         self.tried = set()
-        self.rel_lattice = self.generate_rel_lattice(frozenset(self._base), len(self.base))
+        self.l = len(self.base)
+        self.rel_lattice = self.generate_rel_lattice(self._base, self.l)
 
-    def get_defined_funs(self, file):
-        with open(file, 'r') as f:
-            content = f.read()
-            matches = def_pat.findall(content)
-        return set(matches)
+        self.base_refs = [z3.parse_smt2_string(f"(assert {b})", decls=self.decls)[0]
+                        for b in self.base]
+        self.neg_refs = [z3.Not(r) for r in self.base_refs]
+        self.s = z3.Solver()
 
-    def generate_vars(self, expr):
-        for m in var_pat.findall(expr):
-            match m:
-                case [n, '', _, w]:
-                    tmp = z3.BitVec(n, int(w))
-                case [n, _, '', '']:
-                    tmp = z3.Bool(n)
+    def generate_vars(self, exprs):
+        for expr in exprs:
+            for m in var_pat.findall(expr):
+                match m:
+                    case [n, '', _, w]:
+                        self.decls[n] = z3.BitVec(n, int(w))
+                    case [n, _, '', '']:
+                        self.decls[n] = z3.Bool(n)
 
-            self.decls[n] = tmp
+    def generate_rel_lattice(self, A, l):
+        for t in combinations(A, l - 1):
+            yield frozenset(t)
 
-    def gen_vars_get_fun(self, expr):
-        self.generate_vars(expr)
-        return func_pat.search(expr).group(1)
-
-    def generate_rel_lattice(self, A: frozenset, l) -> (int, set[frozenset]):
-        lattice = {frozenset(t) for t in combinations(A, l-1)}
-        return (lattice, l-1)
-
-    # This follows branches with no backtracking, can be improved in terms of minimality if we give some backtracking
-    # This links to antichains
-    # Each rel_lattice should be an antichain
     def _minimise(self):
         while True:
             curr_best, l = self.curr_best
-            print(f"current best level: {l}")
+            print("Current best: ", l)
             level = l - 1
-            if level != self.rel_lattice[1]:
-                self.rel_lattice = self.generate_rel_lattice(*self.curr_best)
-            available = self.rel_lattice[0] - self.tried
-            if not available:
+            if level != self.l:
+                self.rel_lattice = self.generate_rel_lattice(curr_best, l)
+                self.l = level
+
+            next_can = None
+            for r in self.rel_lattice:
+                if r not in self.tried:
+                    next_can = r
+                    break
+            if next_can is None:
                 return
 
-            next_can = next(iter(available))
-            next_can_ass = {self.base[i] for i in next_can}
+            next_can_ass_idx = next_can                    # frozenset indices
+            rst_idx = self._base - next_can                # indices of the rest
 
-            rst = {self.base[i] for i in self._base - next_can}
-
-            if self.test_can(next_can_ass, rst, self.decls):
-                self.curr_best = (next_can, len(next_can))
+            if self.test_can_refs(next_can_ass_idx, rst_idx):
+                self.curr_best = (next_can, level)
             else:
-                self.mark_children(next_can, level-1)
+                self.mark_children(next_can, level - 1)
+
             self.tried.add(next_can)
 
     def ensure_equal(self):
-        best_ass = [self.base[i] for i in self.curr_best[0]]
-
-        assertion = f"""
-        (assert
-            (=
-                (and {" ".join(self.base)})
-                (and {" ".join(best_ass)})
-            )
-        )
-        """
-        z3_assertion = z3.parse_smt2_string(assertion, decls=self.decls)
-        s = z3.Solver()
-        s.add(z3_assertion)
-
-        assert s.check() == z3.sat
+        best_idx = self.curr_best[0]
+        best_refs = [self.base_refs[i] for i in best_idx]
+        self.s.push()
+        self.s.add(z3.And(self.base_refs) == z3.And(best_refs))
+        assert self.s.check() == z3.sat
+        self.s.pop()
 
     def minimise(self):
         self._minimise()
         self.ensure_equal()
+        return [self.base[i] for i in self.curr_best[0]]
 
     def mark_children(self, can, l):
         if l < 1:
             return
+        for t in combinations(can, l):
+            self.tried.add(frozenset(t))
 
-        children = {frozenset(t) for t in combinations(can, l)}
-        for c in children:
-            self.tried.add(c)
+    def test_can_refs(self, A_idx, B_idx):
+        # A_idx, B_idx are iterables of indices (e.g., frozenset[int])
+        A_list   = [self.base_refs[i] for i in A_idx]
+        notBlist = [self.neg_refs[i]  for i in B_idx]
 
-    @staticmethod
-    def test_can(A, B, d):
-        assertion = f"""
-        (assert (not
-            (implies
-                (and {(' ').join(A)})
-                (and {(' ').join(B)})
-            )
-        ))
-        """
-        z3_assertion = z3.parse_smt2_string(assertion, decls=d)
-        s = z3.Solver()
-        s.add(z3_assertion)
-        match s.check():
-            case z3.sat:
-                return False
-            case z3.unsat:
-                return True
-            case _:
-                raise Exception("z3 returned unkown or failed")
+        self.s.push()
+        if A_list:
+            self.s.add(z3.And(A_list))           # And(A)
+        if notBlist:
+            self.s.add(z3.Or(notBlist))          # ¬And(B) == Or(¬b_i for i in B)
+        else:
+            # B empty ⇒ implication holds
+            self.s.pop()
+            return True
 
+        r = self.s.check()
+        self.s.pop()
+        return r == z3.unsat   # UNSAT ⇒ And(A) ∧ ¬And(B) is impossible ⇒ A ⇒ B
 
-# Regex definitions
-def_pat = re.compile(r'.*define-fun.*')
-func_pat = re.compile(r'(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)')
-var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
 
 def get_defined_funs(file):
     with open(file, 'r') as f:
@@ -248,221 +124,47 @@ def get_defined_funs(file):
         matches = def_pat.findall(content)
     return set(matches)
 
-# TODO: Can also formulate this as a minimum cover problem?
-#   => Are these equivalent?
-def find_max_independent_set(data):
-    keys = list(data.keys())
-    if len(keys) == 0:
-        return {}
-    g = ig.Graph()
-    g.add_vertices(len(keys))
+def get_unique_funs(defined_funs):
+    pair = ([], [])
 
-    key_to_idx = {key: i for i, key in enumerate(keys)}
-    edges = []
+    for df in defined_funs:
+        func = func_pat.search(df).group(1)
+        if func not in set(pair[1]):
+            pair[0].append(df)
+            pair[1].append(func)
+    return pair
 
-    for key, value_list in data.items():
-        for value_expr in value_list:
-            value_str = str(value_expr)
-            if value_str in keys:
-                edges.append((key_to_idx[key], key_to_idx[value_str]))
+def minimise(defined_funs, partition_size):
+    from more_itertools import chunked
 
-    g.add_edges(edges)
-    complement = g.complementer()
-    max_clique = complement.largest_cliques()[0]
-    return {keys[i] for i in max_clique}
+    partition_size = partition_size or len(defined_funs[0])
 
-def plot_assertion_sizes(files, befores, afters, inc, timeout):
-    x = np.arange(len(files))
-    width = 0.35
-    plt.style.use('ggplot')
+    min_core = []
+    for p in chunked(zip(*defined_funs), partition_size):
+        pl = PowerLattice(zip(*p))
+        sub_min_core = pl.minimise()
+        print(f"sub before: {partition_size}, after: {len(sub_min_core)}")
+        min_core.extend(sub_min_core)
+        del pl
+    return min_core
 
-    fig, ax = plt.subplots(figsize=(14, 6), facecolor='#f7f7f7')
-    ax.set_facecolor('#fdfdfd')
+def run_minimisation(in_file, out_file, partition_size=None):
+    defined_funs = get_defined_funs(in_file)
+    unique_funs = get_unique_funs(defined_funs)
 
-    rects1 = ax.bar(x - width/2, befores, width, label='Before', color='#4c72b0')
-    rects2 = ax.bar(x + width/2, afters, width, label='After', color='#dd8452')
+    print('start size: ', len(unique_funs[0]))
+    min_core = minimise(unique_funs, partition_size)
+    print('final size: ', len(min_core))
 
-    ax.set_ylabel('Value', fontsize=12)
-    ax.set_title('Before and After Comparison per File', fontsize=14, weight='bold', pad=15)
-    ax.set_xticks(x)
-    ax.set_xticklabels(files, rotation=45, ha='right', fontsize=9)
-    ax.legend(frameon=False, fontsize=11)
-
-    ax.grid(axis='y', linestyle='--', alpha=0.6)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-
-    def autolabel(rects):
-        for rect in rects:
-            height = rect.get_height()
-            ax.annotate(f'{height}', xy=(rect.get_x() + rect.get_width()/2, height),
-                        xytext=(0, 4), textcoords="offset points",
-                        ha='center', va='bottom', fontsize=8)
-
-    autolabel(rects1)
-    autolabel(rects2)
-    fig.tight_layout()
-    plt.savefig(f"assertion_minimisation_{'inc' if inc else ''}_{timeout}.pdf")
-
-    plt.show()
-
-def generate_vars(expr, d):
-    for m in var_pat.findall(expr):
-        match m:
-            case [n, '', _, w]:
-                tmp = z3.BitVec(n, int(w))
-            case [n, _, '', '']:
-                tmp = z3.Bool(n)
-
-        d[n] = tmp
-
-def gen_vars_get_fun(expr, d):
-    generate_vars(expr, d)
-    return func_pat.search(expr).group(1)
+    with open(out_file, 'w') as f:
+        f.write("\n".join(min_core))
 
 
-# Make this incremental
-#   => make mistral incremental by using the same z3 instance, but just adding assertions
-#   => Also make s incrememntal by having a z3 instance be reused incrementally from "incremental_assertion_check"
-m = Mistral()
-def check_expr_incremental(new_expr, exprs, d):
-    assertion = f"""
-    (assert (not
-        (implies
-            (and {(' ').join(exprs)})
-            {new_expr})
-    ))
-    """
-    z3_assertion = z3.parse_smt2_string(assertion, decls=d)
-    s = z3.Solver()
-    s.add(z3_assertion)
-
-    mus = m.solve(s.to_smt2())
-    print(mus)
-
-    match s.check():
-        case z3.sat:
-            exprs.add(new_expr)
-
-def check_expr_unsat_core(new_expr, exprs, d, required_exprs):
-    s = z3.Solver()
-    s.set(unsat_core=True)
-    s.set(':core.minimize', True)
-
-    for i, expr in enumerate(exprs):
-        assertion = f"(assert {expr})"
-        parsed_expr = z3.parse_smt2_string(assertion, decls=d)
-        s.assert_and_track(parsed_expr[0], str(expr))
-
-    negated_assertion = f"(assert (not {new_expr}))"
-    negated_new_expr = z3.parse_smt2_string(negated_assertion, decls=d)
-    s.add(negated_new_expr[0])
-
-    match s.check():
-        case z3.unsat:
-            core = s.unsat_core()
-            required_exprs[new_expr] = core
-
-#TODO: Make this use incremental solver
-def incremental_assertion_check(file = 'Sygus/ibex_controller.sl'):
-    matches = get_defined_funs(file)
-
-    d = {}
-    fst, *rst = matches
-    first_assertion = gen_vars_get_fun(fst, d)
-    A = {first_assertion}
-    all_unique_assertions = A.copy()
-    for f in rst:
-        assertion = gen_vars_get_fun(f, d)
-        if assertion in A:
-            continue
-        all_unique_assertions.add(assertion)
-        check_expr_incremental(assertion, A, d)
-
-    return len(all_unique_assertions), len(A)
-
-
-def assertion_minimisation(file = 'Sygus/ibex_controller.sl'):
-    matches = get_defined_funs(file)
-
-    required_exprs = {}
-
-    A = set(map(lambda m: func_pat.search(m).group(1), matches))
-    a = list(A)
-    d = {}
-    for f in matches:
-        generate_vars(f, d)
-
-    for i, e in enumerate(A):
-        Ap = a[:i] + a[i+1:]
-        check_expr_unsat_core(e, Ap, d, required_exprs)
-    largest_unneeded = find_max_independent_set(required_exprs)
-    after = A - largest_unneeded
-
-    return len(a), len(after)
-
-def run_worker(filepath, incremental, queue):
-    try:
-        if incremental:
-            result = incremental_assertion_check(filepath)
-        else:
-            result = assertion_minimisation(filepath)
-        queue.put((filepath, result[0], result[1]))
-    except Exception as e:
-        traceback.print_exc()
-        queue.put((filepath, None, None))
-
-def run_all(incremental: bool = False, timeout: int = 300):
-    befores = []
-    afters = []
-    files = []
-
-    for file in os.listdir("Sygus"):
-        if not file.endswith(".sl"):
-            continue
-
-        full_path = os.path.join("Sygus", file)
-        queue = mp.Queue()
-        p = mp.Process(target=run_worker, args=(full_path, incremental, queue))
-        p.start()
-        p.join(timeout)
-
-        if p.is_alive():
-            print(f"Timeout on file: {file}")
-            p.terminate()
-            p.join()
-            continue
-
-        if not queue.empty():
-            _, b, a = queue.get()
-            if b is None or a is None:
-                print(f"Error on file: {file}")
-                continue
-
-            print(file)
-            print(f"\t{'before:':<8} {b:>10}")
-            print(f"\t{'after:':<8} {a:>10}")
-            befores.append(b)
-            afters.append(a)
-            files.append(file)
-
-        gc.collect()
-
-    plot_assertion_sizes(files, befores, afters, incremental, timeout)
-
-"""
-What we want to do given a set of assertions A:
-    => Give the algorithm(s) and complexity of finding the actual minimal set A' such that A <=> A'
-    => Give assurences about the assertion minimisation algorithm
-        -> It gives an A' such that A' <=> A
-        -> When does it minimise
-        -> How well does it minimise
-        -> etc.
-
-https://theory.stanford.edu/~aiken/publications/papers/cav12b.pdf
-https://arxiv.org/pdf/1104.2312
-https://en.wikipedia.org/wiki/Set_cover_problem
-https://cstheory.stackexchange.com/questions/4238/complexity-of-finding-minimal-cover-of-fds
-https://users.cms.caltech.edu/~umans/papers/BU07.pdf
-https://dev.to/hebashakeel/minimal-cover-417l
-"""
+if __name__ == '__main__':
+    import sys
+    file = sys.argv[1]
+    out_file = sys.argv[2] or 'tmp'
+    partition_size = None
+    if len(sys.argv) == 4:
+        partition_size = int(sys.argv[3]) or None
+    run_minimisation(file, out_file, partition_size)
