@@ -1,0 +1,13 @@
+# running in arb2_prove/src/
+read -formal tmp.sv
+prep -top top
+# Convert async reset flops to synchronous for SMT compatibility
+async2sync
+dffunmap
+# Generate SMT-LIB2 output
+write_smt2 -wires arb2_constraints.smt2
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

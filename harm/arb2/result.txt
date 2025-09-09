@@ -18,3 +18,4 @@ always (top::clk ##3 true |-> top::gnt1)
 always (top::rst ##1 !top::rst ##1 true |-> top::req1)
 always (top::clk ##3 true |-> top::req1)
 always (top::rst ##2 !top::gnt1 ##1 true |-> top::req1)
+
