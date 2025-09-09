@@ -1,11 +1,13 @@
-Running branch for carrying out EGraph rewrites over assertions.
+Contains two python files for minimisation and maximal universal subset (MUS).
 
-The egraph code expects: 
-	1. An input file containing the assertions 
-	2. An optional output file (defaulted as "assertionOutput.out") 
-	3. An optional timeout in seconds (defaulted at 10 seconds)
+#### Minimisation
 
-To run the code:
-	1. cd into assert_egraph
-	2. run: "cargo build -- release" to build exectuable
-	3. run executable using ./target/release/assert_egraph -f "input-file" -o "optional output-file" -t "optional timeout"
+Found in "minimise_assertions.py"
+ - This takesa  file with assertions and generates a new file with some redundent assertions removed.
+ - This uses a greedy lattice based approad 
+
+
+#### Maximal universal subset (MUST)
+
+Found in "maxmimal_universal_subset.py"
+ - Given a set of assertions, the set is looped over and at each iteration it returns the variables in the assertions that can be univeraslly quantified (are under-specified)
