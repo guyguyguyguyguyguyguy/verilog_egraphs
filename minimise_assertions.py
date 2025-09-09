@@ -21,6 +21,12 @@ var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
 import z3
 from itertools import combinations
 
+# Saving each inverse (base - candidate) combination is memory heavy
+#  -> On the bigger benchrmarks with ~7000 assertions
+#     there exist 7000!/(3!(7000 - 3)!) ~ 57,142,169,000 combinations with three assertions removed 
+class CheckedCombDataStruct:
+    ...
+
 class PowerLattice:
     def __init__(self, funs):
         self.decls = {}
@@ -58,26 +64,26 @@ class PowerLattice:
             print("Current best: ", l)
             level = l - 1
             if level != self.l:
+                # self.tried = set() # I think that each time we move to a new layer we can reset the tried set
                 self.rel_lattice = self.generate_rel_lattice(curr_best, l)
                 self.l = level
 
             next_can = None
             for r in self.rel_lattice:
-                if r not in self.tried:
+                if not any(r.issubset(t) for t in self.tried):
                     next_can = r
                     break
             if next_can is None:
                 return
 
-            next_can_ass_idx = next_can                    # frozenset indices
-            rst_idx = self._base - next_can                # indices of the rest
+            next_can_ass_idx = next_can                    
+            rst_idx = self._base - next_can                
 
             if self.test_can_refs(next_can_ass_idx, rst_idx):
                 self.curr_best = (next_can, level)
             else:
-                self.mark_children(next_can, level - 1)
+                self.tried.add(next_can)
 
-            self.tried.add(next_can)
 
     def ensure_equal(self):
         best_idx = self.curr_best[0]
@@ -92,11 +98,6 @@ class PowerLattice:
         self.ensure_equal()
         return [self.base[i] for i in self.curr_best[0]]
 
-    def mark_children(self, can, l):
-        if l < 1:
-            return
-        for t in combinations(can, l):
-            self.tried.add(frozenset(t))
 
     def test_can_refs(self, A_idx, B_idx):
         # A_idx, B_idx are iterables of indices (e.g., frozenset[int])
@@ -105,17 +106,16 @@ class PowerLattice:
 
         self.s.push()
         if A_list:
-            self.s.add(z3.And(A_list))           # And(A)
+            self.s.add(z3.And(A_list))
         if notBlist:
-            self.s.add(z3.Or(notBlist))          # ¬And(B) == Or(¬b_i for i in B)
+            self.s.add(z3.Or(notBlist))
         else:
-            # B empty ⇒ implication holds
             self.s.pop()
             return True
 
         r = self.s.check()
         self.s.pop()
-        return r == z3.unsat   # UNSAT ⇒ And(A) ∧ ¬And(B) is impossible ⇒ A ⇒ B
+        return r == z3.unsat
 
 
 def get_defined_funs(file):
@@ -143,12 +143,12 @@ def minimise(defined_funs, partition_size):
     for p in chunked(zip(*defined_funs), partition_size):
         pl = PowerLattice(zip(*p))
         sub_min_core = pl.minimise()
-        print(f"sub before: {partition_size}, after: {len(sub_min_core)}")
+        print(f"sub before: {len(p)}, after: {len(sub_min_core)}")
         min_core.extend(sub_min_core)
         del pl
     return min_core
 
-def run_minimisation(in_file, out_file, partition_size=None):
+def run_minimisation(in_file, out_file, partition_size=None, ret=False):
     defined_funs = get_defined_funs(in_file)
     unique_funs = get_unique_funs(defined_funs)
 
@@ -159,12 +159,26 @@ def run_minimisation(in_file, out_file, partition_size=None):
     with open(out_file, 'w') as f:
         f.write("\n".join(min_core))
 
+    if ret:
+        return (len(unique_funs[0]), len(min_core))
+
 
 if __name__ == '__main__':
     import sys
-    file = sys.argv[1]
-    out_file = sys.argv[2] or 'tmp'
-    partition_size = None
-    if len(sys.argv) == 4:
-        partition_size = int(sys.argv[3]) or None
+
+    defaults = ["Sygus/s38417.sl", "tmp", None]
+    args = sys.argv[1:] + defaults[len(sys.argv)-1:]  # pad with defaults
+
+    match sys.argv:
+        case [_]: 
+            file, out_file, partition_size = defaults
+        case [_, f]: 
+            file, out_file, partition_size = f, *defaults[1:]
+        case [_, f, o]: 
+            file, out_file, partition_size = f, o, defaults[2]
+        case [_, f, o, p]: 
+            file, out_file, partition_size = f, o, p
+        case _: 
+            raise Exception("Too many arguments")
+
     run_minimisation(file, out_file, partition_size)
