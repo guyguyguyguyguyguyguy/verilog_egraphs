@@ -1,31 +1,12 @@
 import re
 import z3
-import igraph as ig
+from itertools import combinations
 
-import multiprocessing as mp
-import os
-import matplotlib.pyplot as plt
-import numpy as np
-import gc
-import traceback
-
-from itertools import combinations, chain
-from collections import defaultdict
-import random
 
 def_pat = re.compile(r'.*define-fun.*')
 func_pat = re.compile(r'(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)')
 var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
 
-
-import z3
-from itertools import combinations
-
-# Saving each inverse (base - candidate) combination is memory heavy
-#  -> On the bigger benchrmarks with ~7000 assertions
-#     there exist 7000!/(3!(7000 - 3)!) ~ 57,142,169,000 combinations with three assertions removed 
-class CheckedCombDataStruct:
-    ...
 
 class PowerLattice:
     def __init__(self, funs):
@@ -61,10 +42,9 @@ class PowerLattice:
     def _minimise(self):
         while True:
             curr_best, l = self.curr_best
-            print("Current best: ", l)
+            # print("Current best: ", l)
             level = l - 1
             if level != self.l:
-                # self.tried = set() # I think that each time we move to a new layer we can reset the tried set
                 self.rel_lattice = self.generate_rel_lattice(curr_best, l)
                 self.l = level
 
