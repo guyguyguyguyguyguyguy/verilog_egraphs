@@ -106,7 +106,7 @@ def gen_vars_get_fun(expr, d):
     generate_vars(expr, d)
     return func_pat.search(expr).group(1)
 
-def get_mus(new_expr, exprs, d, m):
+def get_mus(exprs, d, m):
     assertion = f"""
     (assert
         (and {(' ').join(exprs)})
@@ -119,18 +119,18 @@ def get_mus(new_expr, exprs, d, m):
     minimal_uni_subset = m.solve(s.to_smt2())
     return minimal_uni_subset
 
-# This is slow, but when combined with the ability to prune unneeded assertions it'll be faster
-def run_get_mus(file = 'Sygus/ibex_controller.sl', out_file = 'tmp'):
-    matches = get_defined_funs(file)
+def get_variables(file):
+    with open(file, 'r') as f:
+        variables = set(v for v in f.read().split())
+    return variables
+
+def run_get_mus(file = 'ibex_controller'):
+    variables = get_variables(f"Variables/{file}.txt")
+    matches = get_defined_funs(f"Sygus/{file}.sl")
     m = Mistral()
 
     d = {}
-    fst, *rst = matches
-    first_assertion = gen_vars_get_fun(fst, d)
-    A = {first_assertion}
-    for f in rst:
-        assertion = gen_vars_get_fun(f, d)
-        A.add(assertion)
-        mus = get_mus(assertion, A, d, m)
-        with open(out_file, 'w') as f:
-            f.write('\n'.join((str(x) for x in mus)))
+    assertions = {gen_vars_get_fun(a, d) for a in matches}
+    mus = {str(a) for a in get_mus(assertions, d, m)}
+    underspecified = variables.difference(mus)
+    return underspecified
