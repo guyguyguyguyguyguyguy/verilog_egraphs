@@ -9,7 +9,7 @@ import z3
 import more_itertools
 from io import StringIO
 # ==============================================================================
-class MistralLattice:
+class MistralMHSLattice:
     """
     Fixed version with correct MUS interpretation.
     """
@@ -55,42 +55,117 @@ class MistralLattice:
         var_freq = self._compute_var_frequency(potential_vars)
         potential_vars.sort(key=lambda v: var_freq[v])
         
-        batches = list(more_itertools.chunked(potential_vars, 3))
+        batches = list(more_itertools.chunked(potential_vars, 1))
         
         for batch in batches:
             X_new = X_free.union(frozenset(batch))
             
             if self.get_model_forall_lattice(X_new):
                 X_free = X_new  
-            else:
-                return self.descend_to_boundary(X_free)
         
         return frozenset(X_free)
     
     def descend_to_boundary(self, X_free):
+        """Use PySMT's UnsatCoreSolver with proper tracking."""
+        from pysmt.shortcuts import Solver, Not, ForAll, Implies, And
+        
         X_list = list(X_free)
         
-        if not X_list or self.get_model_forall_lattice(X_free):
+        if not X_list:
+            return frozenset()
+        
+        if self.get_model_forall_lattice(X_free):
             return frozenset(X_free)
+        
+        # Strategy: For each conjunction in the formula, track which variables appear
+        # Then find which conjunctions are in the UNSAT core
+        
+        with Solver(name=self.sname, unsat_cores_mode='named') as solver:
+            # Get individual conjuncts from the formula
+            if self.formula.is_and():
+                conjuncts = self.formula.args()
+            else:
+                conjuncts = [self.formula]
+            
+            # Add each conjunct as a named assertion with quantification
+            for i, conjunct in enumerate(conjuncts):
+                # Only quantify over variables that appear in both X_free and this conjunct
+                conjunct_vars = conjunct.get_free_variables()
+                vars_to_quantify = X_free.intersection(conjunct_vars)
+                
+                if vars_to_quantify:
+                    assertion = ForAll(vars_to_quantify, conjunct)
+                    assertion_name = f"conjunct_{i}"
+                    solver.add_assertion(assertion, named=assertion_name)
+            
+            result = solver.solve()
+            
+            if not result:  # UNSAT - we have a conflict!
+                core = solver.get_named_unsat_core()
+                
+                # Find which variables are in the core conjuncts
+                conflicting_vars = set()
+                for name in core.keys():
+                    if name.startswith('conjunct_'):
+                        idx = int(name.replace('conjunct_', ''))
+                        if idx < len(conjuncts):
+                            conjunct_vars = conjuncts[idx].get_free_variables()
+                            conflicting_vars.update(X_free.intersection(conjunct_vars))
+                
+                conflicting_vars = frozenset(conflicting_vars)
+                
+                if conflicting_vars:
+                    X_sat = X_free - conflicting_vars
+                    
+                    if not X_sat or not self.get_model_forall_lattice(X_sat):
+                        if X_sat:
+                            return self.descend_to_boundary(X_sat)
+                        else:
+                            return frozenset()
+                    
+                    # Try to add back variables
+                    for var in conflicting_vars:
+                        X_candidate = X_sat.union(frozenset([var]))
+                        if self.get_model_forall_lattice(X_candidate):
+                            X_sat = X_candidate
+                    
+                    return frozenset(X_sat)
+        
+        return self._descend_systematic(X_free)
+
+    def _descend_systematic(self, X_free):
+        """Fallback: systematic removal."""
+        X_list = list(X_free)
+        
+        if not X_list:
+            return frozenset()
         
         var_freq = self._compute_var_frequency(X_list)
         X_list.sort(key=lambda v: var_freq[v], reverse=True)
         
-        batches = list(more_itertools.chunked(X_list, 10))
+        X_current = X_free
         
-        for batch in batches:
-            X_new = X_free - frozenset(batch)
+        for var in X_list:
+            X_without = X_current - frozenset([var])
             
-            if self.get_model_forall_lattice(X_new):
-                return self.climb_to_boundary(X_new, list(batch))
-            X_free = X_new
+            if self.get_model_forall_lattice(X_without):
+                # Try to add back vars
+                for v in X_list:
+                    if v not in X_without:
+                        X_cand = X_without.union(frozenset([v]))
+                        if self.get_model_forall_lattice(X_cand):
+                            X_without = X_cand
+                return frozenset(X_without)
+            
+            X_current = X_without
         
-        return frozenset(X_free)
+        return frozenset()
     
     def _search(self, assertion_vars):
         mhss = [self.get_mhs(assertion_vars)]
         free_sets = set()
         for mhs in mhss:
+            print(len(mhs), len(self.assertion_vars))
             if self.get_model_forall_lattice(mhs):
                 free_sets.add(self.climb_to_boundary(mhs))
             else:
@@ -98,17 +173,24 @@ class MistralLattice:
         return free_sets
     
     def get_mhs(self, assertion_vars):
-        sorted_vars = sorted(assertion_vars, key=lambda x: len(x))
+        uncovered_sets = [frozenset(var_set) for var_set in assertion_vars]
         mhs = set()
-        covered = set()
-        for var_set in sorted_vars:
-            if var_set.issubset(covered):
-                continue
-            candidates = var_set - covered
-            if candidates:
-                best_var = next(iter(candidates))
-                mhs.add(best_var)
-                covered.add(best_var)
+        
+        while uncovered_sets:
+            var_freq = {}
+            for var_set in uncovered_sets:
+                for var in var_set:
+                    if var not in mhs:
+                        var_freq[var] = var_freq.get(var, 0) + 1
+            
+            if not var_freq:
+                break
+            
+            best_var = max(var_freq.keys(), key=lambda v: var_freq[v])
+            mhs.add(best_var)
+            
+            uncovered_sets = [s for s in uncovered_sets if best_var not in s]
+        
         return mhs
     
     def get_model_forall_lattice(self, x_univl):
@@ -178,7 +260,7 @@ def run_get_mas():
     matches = get_defined_funs(f"../Sygus/s38417.sl")
     variables = get_variables(f"../Variables/s1238.txt")
     matches = get_defined_funs(f"../Sygus/s1238.sl")
-    m = MistralLattice()
+    m = MistralMHSLattice()
     d = {}
     assertions = {gen_vars_get_fun(a, d) for a in matches}
     print("vars: ", len(variables))
