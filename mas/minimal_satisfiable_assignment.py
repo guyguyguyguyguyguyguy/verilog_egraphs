@@ -34,6 +34,7 @@ class MistralMHSLattice:
         self.sat_calls = 0
         self.assertion_vars = [sf.get_free_variables() for sf in self.formula.args()]
         max_free_sets = self._search(self.assertion_vars)
+        print([len(x) for x in max_free_sets])
         best_free_set = max(max_free_sets, key=lambda x: len(x))
         return self.fvars - best_free_set
     
@@ -44,26 +45,6 @@ class MistralMHSLattice:
                 if v in var_freq:
                     var_freq[v] += 1
         return var_freq
-    
-    def climb_to_boundary(self, X_free, potential_vars=None):
-        if potential_vars is None:
-            potential_vars = [v for v in self.fvars if v not in X_free]
-        
-        if not potential_vars:
-            return frozenset(X_free)
-        
-        var_freq = self._compute_var_frequency(potential_vars)
-        potential_vars.sort(key=lambda v: var_freq[v])
-        
-        batches = list(more_itertools.chunked(potential_vars, 1))
-        
-        for batch in batches:
-            X_new = X_free.union(frozenset(batch))
-            
-            if self.get_model_forall_lattice(X_new):
-                X_free = X_new  
-        
-        return frozenset(X_free)
     
     def descend_to_boundary(self, X_free):
         """Use PySMT's UnsatCoreSolver with proper tracking."""
@@ -163,16 +144,21 @@ class MistralMHSLattice:
     
     def _search(self, assertion_vars):
         mhss = [self.get_mhs(assertion_vars)]
-        free_sets = set()
-        for mhs in mhss:
+        free_sets = []
+        for _ in range(5):
+            mhs = mhss.pop()
             print(len(mhs), len(self.assertion_vars))
             if self.get_model_forall_lattice(mhs):
-                free_sets.add(self.climb_to_boundary(mhs))
+                free_sets.append(mhs)
+                return free_sets
             else:
-                free_sets.add(self.descend_to_boundary(mhs))
+                free_set = self.descend_to_boundary(mhs)
+                free_sets.append(free_set)
+                new_mhs = self.get_mhs(assertion_vars, mhs - free_set)
+                mhss.append(new_mhs)
         return free_sets
     
-    def get_mhs(self, assertion_vars):
+    def get_mhs(self, assertion_vars, to_ignore = set()):
         uncovered_sets = [frozenset(var_set) for var_set in assertion_vars]
         mhs = set()
         
@@ -180,7 +166,7 @@ class MistralMHSLattice:
             var_freq = {}
             for var_set in uncovered_sets:
                 for var in var_set:
-                    if var not in mhs:
+                    if var not in mhs and var not in to_ignore:
                         var_freq[var] = var_freq.get(var, 0) + 1
             
             if not var_freq:
