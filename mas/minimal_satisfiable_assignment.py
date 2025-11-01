@@ -9,6 +9,8 @@ import z3
 import more_itertools
 from io import StringIO
 # ==============================================================================
+
+
 class MistralMHSLattice:
     """
     Fixed version with correct MUS interpretation.
@@ -45,7 +47,9 @@ class MistralMHSLattice:
                 if v in var_freq:
                     var_freq[v] += 1
         return var_freq
-    
+
+
+    # TODO: Need a way to get the (minimal) unsat core
     def descend_to_boundary(self, X_free):
         """Use PySMT's UnsatCoreSolver with proper tracking."""
         from pysmt.shortcuts import Solver, Not, ForAll, Implies, And
@@ -182,22 +186,22 @@ class MistralMHSLattice:
     def get_model_forall_lattice(self, x_univl):
         x_set = frozenset(x_univl)
         
-        for unsat_set in self.known_unsat:
-            if unsat_set.issubset(x_set):
-                return False
+        if any(unsat_set.issubset(x_set) for unsat_set in self.known_unsat):
+            return False
         
-        for sat_set in self.known_sat:
-            if x_set.issubset(sat_set):
-                return True
+        if any(x_set.issubset(sat_set) for sat_set in self.known_sat):
+            return True
         
         self.sat_calls += 1
         result = get_model(ForAll(x_univl, self.formula), solver_name=self.sname)
-        
+
         if result is not None:
+            self.known_sat = {s for s in self.known_sat if not s.issubset(x_set)}
             self.known_sat.add(x_set)
         else:
+            self.known_unsat = {s for s in self.known_unsat if not x_set.issubset(s)}
             self.known_unsat.add(x_set)
-        
+
         return result is not None
 
 # Regex definitions
@@ -241,11 +245,12 @@ def get_variables(file):
         variables = set(v for v in f.read().split())
     return variables
 
-def run_get_mas():
-    variables = get_variables(f"../Variables/s38417.txt")
-    matches = get_defined_funs(f"../Sygus/s38417.sl")
-    variables = get_variables(f"../Variables/s1238.txt")
-    matches = get_defined_funs(f"../Sygus/s1238.sl")
+def run_get_mas(vf="../Variables/s38584.txt", sf="../Sygus/s38584.sl"):
+    import time
+    start = time.time()
+    variables = get_variables(vf)
+    matches = get_defined_funs(sf)
+
     m = MistralMHSLattice()
     d = {}
     assertions = {gen_vars_get_fun(a, d) for a in matches}
@@ -255,6 +260,17 @@ def run_get_mas():
     mas = {str(a) for a in mas}
     underspecified = variables - mas
     print("underspecified: ", len(underspecified))
+    print("time: ", time.time() - start)
     return underspecified
 
-run_get_mas()
+import sys
+
+
+if __name__ == '__main__':
+    print(sys.argv)
+    if len(sys.argv) == 2:
+        vf = sys.argv[1]
+        sf = f"../Sygus/{re.search(r'Variables\/(.*)\.txt', vf).group(1)}.sl"
+        _ = run_get_mas(vf, sf)
+    else:
+        _ = run_get_mas()
