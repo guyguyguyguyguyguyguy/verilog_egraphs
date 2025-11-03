@@ -1,0 +1,306 @@
+\documentclass[a4paper]{article}
+
+% Character encoding and font
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+
+% Page layout
+\usepackage[a4paper]{geometry}
+
+% Math and symbols
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{bm}
+
+% Graphics and colors
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{tikz}
+
+% Tables and formatting
+\usepackage{booktabs}
+\usepackage{empheq}
+\usepackage{mdframed}
+\usepackage{enumitem}
+
+% Miscellaneous
+\usepackage{standalone}
+
+% Custom colors
+\definecolor{matteOrange}{RGB}{255,179,71} % A matte orange color
+\definecolor{deepGreen}{RGB}{26,111,0}
+\definecolor{shallowGreen}{RGB}{235,255,255}
+\definecolor{deepBlue}{RGB}{61,124,222}
+\definecolor{shallowBlue}{RGB}{235,249,255}
+
+% Required packages for the new box style
+\usepackage{tcolorbox}
+
+\usepackage[utf8]{inputenc}
+
+% Default fixed font does not support bold face
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{8} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{8}  % for normal
+
+% Custom colors
+\usepackage{color}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+\usepackage{listings}
+
+% Python style for highlighting
+\newcommand\pythonstyle{\lstset{
+language=Python,
+basicstyle=\ttm,
+morekeywords={self},              % Add keywords here
+keywordstyle=\ttb\color{deepblue},
+emph={MyClass,__init__},          % Custom highlighting
+emphstyle=\ttb\color{deepred},    % Custom highlighting style
+stringstyle=\color{deepgreen},
+commentstyle=\footnotesize\rmfamily\color{deepgreen}, % non-italic and small comments
+frame=tb,                         % Any extra options here
+showstringspaces=false
+}}
+
+
+% Python environment
+\lstnewenvironment{python}[1][]
+{
+\pythonstyle
+\lstset{#1}
+}
+{}
+
+\newcommand\pythoninline[1]{{\pythonstyle\lstinline!#1!}}
+
+% New orangebox command
+\newcommand\orangebox[1]{%
+	\begin{tcolorbox}[
+		enhanced,
+		arc=7pt, % Curved corners
+		boxrule=1pt, % Border thickness
+		colback=matteOrange, % Background color
+		colframe=black, % Border color
+		fontupper=\normalfont, % Text font
+		parbox=false, % Allows for multi-line content
+		boxsep=5pt, % Inner padding
+		left=10pt, % Left padding
+		right=10pt, % Right padding
+		top=5pt, % Top padding
+		bottom=5pt, % Bottom padding
+	]
+	#1
+	\end{tcolorbox}
+}
+\newcommand{\ttl}[2]{\begin{center}\Large\textbf{#1}\end{center}\vspace{2mm}}
+\newcommand{\ct}[1]{~\cite{#1}}
+
+% List settings
+\setlist[itemize]{noitemsep}
+\setlist[enumerate]{noitemsep}
+
+% Figure support
+\usepackage{import}
+\usepackage{xifthen}
+\usepackage{pdfpages}
+\usepackage{transparent}
+\newcommand{\incfig}[1]{%
+	\def\svgwidth{\columnwidth}
+	\import{./figures/}{#1.pdf_tex}
+}
+
+% PDF settings
+\pdfminorversion=7
+\pdfsuppresswarningpagegroup=1
+
+
+\begin{document}
+
+\ttl{Using MUS for SMART++}
+
+SMART generates new assertions in blocks.
+Assertions are represented by the set, $A$.
+Blocks are provided with somer varible set that is a subset of all variables
+present in our traces.
+
+\[ 
+\hat{V} \subseteq V 
+\]
+
+Each block contains a number of threads that recived a subset of $\hat{V}$
+and produce a single assertion.
+Currently $\hat{V}$ is generated randomly from $V$.
+The idea is to use the Minimal Universal Subset ,$MUS$, to provide 
+some guidence in the varibales to be included in $\hat{V}$. 
+This should both speed up SMART++ and increase mutation detection
+and provides strengths the story of SMART++ being an effective
+parallelisation of specification mining through CEGIS based synthesis.
+
+
+\section*{Preliminaries}
+
+\subsubsection*{MUS and MSA}
+
+Exhaustative methods of finding the $MUS$ is expensive,
+so we propose an approximate method that returns a set, $N$, 
+for which every variable in $N$ is  universally quantified, formally,
+
+\begin{equation}\label{eq:mus}
+N = \{\, v \in V \mid \exists (V \setminus N) \;.\; \forall N \;.\; A \,\}
+\end{equation}
+
+This says, that there exists some assignments to all varaibles not in $N$
+such that $A$ is true for any values given to varibales in $N$,
+suggesting that variables in $N$ are underspecified.
+But makes no claim that $N$ is minimal.
+Note that the $MUS$ is the dual of the Minimal Satisfying Assignment, $MSA$,
+a minimal parital assignment of variables in $A$ such that $A$ is true.
+
+\[
+MSA = (M, \sigma) . A
+\]
+where $(M, \sigma)$ is a partial assignemnt to $V$.
+
+\subsubsection*{MHS}
+
+The Minimal Hitting Set ($MHS$) of a $A$
+is a the minimal subset of $V$ such that for each clause $A$, 
+some variable of that clause is in the $MHS$.
+
+\[
+MHS = \{ T \subset V \mid \forall a \in A \;. \; T \cap a \;.\; \not = \emptyset  \}	
+\]
+
+We can generate an approximate $MHS$ for $A$ as follows;
+
+\begin{python}
+def approx_MHS(AV, T={}): 
+"""
+ AV: List of sets of variables in each assertion in A
+ T:  A potentially non-empty set of variables we think we want to include 
+"""
+  T = T or {}
+  for s in AV:
+    if not any(v in T for v in s):  # s not hit by T?
+	  v =  s[0]  # get first variable in s
+	  T = T.union(v)  
+  return T
+\end{python}
+
+We will say that an (approx) $MHS$ covers $A$ if 
+$V \setminus MHS$ is an $MUS$.
+
+
+%==================================================
+\section*{Algorithm}
+%==================================================
+
+Give a set $A$ of assertions, the algorithm to get an approximate MUS proceeds as follows:
+
+We search for a set of approx MSA
+by starting with an approximate MHS.
+This is the case, since given that we know each assertion in $A$ is true,
+we know that our MSA must hit each assertion with
+at least one varaible. 
+
+Partial assignemnt to the the variables in the $MHS$ is usually not sufficient to
+ensure $A$ is true for all assignemnts to variables in $V \setminus MHS$
+and hence we to add variables to the $MHS$ until it is sufficient to cover the truth of $A$.
+This search proceeds as the following pseudocode:
+
+
+\begin{python}
+def search(AV, V, A, its):
+  mhss = [approx_MHS(AV)]
+  msa_sets = []
+  for _ in range(its):
+    mhs = mhss.pop()
+    if is_mus(V/mhs, A): 
+	  # Optional: decend_to_boundary(mhs, V, A)
+      msa_sets.append(mhs)
+    else:
+      msa = ascend_to_boundary(mhs, V, A)
+      msa_sets.append(msa)
+      # initialise new mhs by starting with unsatisfiable vars from previous candidate
+      mhss.append(approx_mhs(AV, mhs-msa))
+  return msa_sets
+\end{python}
+
+To check whether an $V \setminus MHS$ is an $MUS$ (and hence $MHS$ is an $MSA$)
+ we use the query in equation \ref{eq:mus}
+by calling to an SMT sovler (usually CVC5).
+We make this more efficient by storing previously tested candidates, $C$.
+Given some new $MUS$ query, $q$ there are three possibilities:
+\begin{enumerate}
+\item If $\exists c \in \{c \in C \mid \text{ismus}(c) \}  \mid q \subseteq c$ then $q$ is also underspecified
+\item If $\exists c \in \{c \in C \mid \neg \text{ismus}(c) \}  \mid c \subseteq q$ then $q$ is not underspecified
+\item Otherwise; test using CVC5 and store in $C$ as mus or not
+\end{enumerate}
+
+If the $MHS$ is not an $MSA$ we introduce more variables from $V$ until
+it covers $A$.
+To be more targetted with how we add variables, 
+we attempt to extract an unsat core from our $MUS$ query, $q$,
+and add these varaibles to the $MHS$.
+However, querying with quantifiers stops us being able to automatically extracting this from CVC5.
+Instead we overapproximate the unsat core by checking for each assertion in $A$,
+if the relavent variables in $q$ are not underspecified.
+
+\begin{python}
+def approx_unsatcore(q, A):  # q is a set of, potentially MUS,  variables
+  specified = {}
+  for a in A:
+    q_p = {v for v in a if a in q}
+    if not is_mus(q_p, a):
+      specified = specified.union(q_p)
+  return specified
+\end{python}
+
+This is used in \pythoninline{ascend_to_boundary} to get an approximate $MSA$:
+
+\begin{python} 
+def ascend_to_boundary(MSA, V, A):
+  unsat_vars = approx_unsatcore(V/MSA)
+  return MSA/unsat_vars
+\end{python}
+
+\orangebox{Need to check whether removing every \pythoninline{unsat_var} defintely provides a valid MSA?}
+
+The final idea is to use the \verb|unsat_vars| to guide the generation 
+of the next $MHS$ that we propose as a candidate $MSA$.
+We know that this set of variables need to be specified
+for some given set of candiadte. 
+However, this is an overapproximation of the variables as there may be redundency between them,
+given that we check an assertion at a time not the whole set $A$ together.
+
+Doing so may arise in scenarios where our $MHS$ is an $MSA$, 
+including reduendant variables.
+For this we can (optional) \pythoninline{descend_to_boundary};
+where we greedily remove each variable until we reach the boundary where 
+the candidate is no longer an $MSA$.
+
+\begin{python}
+def descend_to_boundary(q, V, A):
+  for v in q:
+    q_p = q/{v}
+    if not is_mus(V/q_p, A)
+      return q
+
+\end{python}
+
+
+\subsection*{More traces}
+
+
+\section*{Engineering}
+
+This method works but is compute heavy for large $A$.
+This is due to the SMT query and the large search space when ascending/descending.
+Thus to effectively integrate this into SMART++
+
+
+\end{document}
