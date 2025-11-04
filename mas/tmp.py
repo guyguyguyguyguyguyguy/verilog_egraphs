@@ -12,26 +12,28 @@ seen_mus = []
 seen_notmus = []
 
 def get_mus(v_file, a_file):
-    query, all_vars, vars_per_assertion = get_assertions(a_file)   
+    query, all_vars_inq, vars_per_assertion = get_assertions(a_file)   
     variables = get_variables(v_file)
 
-    msas = search_msas(query, vars_per_assertion, all_vars)
-    best_msa = max(msas, key=len)
+    msas = search_msas(query, vars_per_assertion, all_vars_inq)
+    best_msa =min(msas, key=len)
+    diff = all_vars_inq - best_msa
     best_msa = set(map(str, best_msa))
 
-    return variables - best_msa
+    return variables - best_msa, best_msa, all_vars_inq, diff
 
 def search_msas(query, vars_per_assertion, all_vars, its=5):
     mhs = approx_mhs(vars_per_assertion, all_vars)
     msas = []
     for  _ in range(its):
         if is_mus(all_vars - mhs, query):
+            print(len(mhs))
             # descend_to_boundary(mhs, query)
+            # mhs = approx_mhs(vars_per_assertion, all_vars, T=include)
             msas.append(mhs)
         else:
             msa = ascend_to_boundary(mhs, vars_per_assertion,  all_vars, query)
             msas.append(msa)
-            print(msa)
             include = (mhs - msa)
             mhs = approx_mhs(vars_per_assertion, all_vars, T=include)
     return msas
@@ -41,15 +43,15 @@ def vars_by_count(vars_per_assertion):
     for s in vars_per_assertion:
         for v in s:
             counter[v] +=1
-    return sorted(counter, key=counter.get)
+    return sorted(counter, key=counter.get, reverse=True)
 
 def approx_mhs(vars_per_assertion, all_vars, *, T=set()):
-    uncovered = all_vars
+    uncovered = vars_per_assertion
     vars_by_freq = vars_by_count(vars_per_assertion)
     while uncovered:
         next_var = vars_by_freq.pop(0)
         T.add(next_var)
-        uncovered = {x for x in uncovered if next_var not in {x}}  # Want to fix so not in set
+        uncovered = {x for x in uncovered if next_var not in x} 
     return T
 
 def is_mus(cand, query, track=True):
@@ -76,7 +78,7 @@ def ascend_to_boundary(mhs ,vars_per_assertion, all_vars, query):
 # will be a way to do this incrementally
 def approx_unsatcore(cmus, vpa, query):
     specified = set()
-    for i, (vs, a) in enumerate(zip(vars_per_assertion, query.args())):
+    for i, (vs, a) in enumerate(zip(vpa, query.args())):
         qv = vs.intersection(cmus)
         if not qv or qv.issubset(specified):
             continue
