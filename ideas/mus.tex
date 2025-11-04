@@ -178,14 +178,17 @@ MHS = \{ T \subseteq V \mid \forall a \in A \;. \; T \cap a \;.\; \not = \emptys
 We can generate an approximate $MHS$ for $A$ as follows;
 
 \begin{python}
-def approx_MHS(AV, T={}): 
+def approx_MHS(AV, V, T={}): 
 """
  AV: List of sets of variables in each assertion in A
  T:  A potentially non-empty set of variables we think we want to include 
 """
-  for s in AV:
-    if not any(v in T for v in s):  # is s hit by T?
-	  T = T.union(s[0]) # add first variable in s 
+  uncovered = V
+  sorted_vars = vars_by_count(AV) 
+  while is_uncovered(AV):
+    next_v = sorted_vars.pop(0)
+    T.add(next_v)
+    uncovered = {x for x in uncovered if next_v not in x}
   return T
 \end{python}
 
@@ -256,6 +259,8 @@ def approx_unsatcore(q, A):  # q is a set of, potentially MUS,  variables
   specified = {}
   for a in A:
     q_p = {v for v in a if a in q}
+    if q_p.issubet(specified):
+      continue
     if not is_mus(q_p, a):
       specified = specified.union(q_p)
   return specified
