@@ -18,6 +18,7 @@
 \usepackage{graphicx}
 \usepackage{color}
 \usepackage{tikz}
+\usetikzlibrary{graphs} 
 
 % Tables and formatting
 \usepackage{booktabs}
@@ -124,55 +125,54 @@ showstringspaces=false
 
 SMART generates new assertions in blocks.
 Assertions are represented by the set, $A$.
-Blocks are provided with somer varible set that is a subset of all variables
-present in our traces.
+Blocks are provided with some varible set that is a subset of all variables
+present in the traces.
 
 \[ 
 \hat{V} \subseteq V 
 \]
 
 Each block contains a number of threads that recived a subset of $\hat{V}$
-and produce a single assertion.
+and produces a single assertion.
 Currently $\hat{V}$ is generated randomly from $V$.
-The idea is to use the Minimal Universal Subset ,$MUS$, to provide 
-some guidence in the varibales to be included in $\hat{V}$. 
-This should both speed up SMART++ and increase mutation detection
-and provides strengths the story of SMART++ being an effective
-parallelisation of specification mining through CEGIS based synthesis.
+The idea is to use the Minimal Universal Subset, $MUS$, 
+to guide in the varibales to be included in future $\hat{V}$s. 
 
 
 \section*{Preliminaries}
 
 \subsubsection*{MUS and MSA}
 
-Exhaustative methods of finding the $MUS$ is expensive,
+Exhaustative methods of finding the $MUS$ are expensive,
 so we propose an approximate method that returns a set, $N$, 
-for which every variable in $N$ is  universally quantified, formally,
+for which every variable in $N$ is underspecified, formall;
 
 \begin{equation}\label{eq:mus}
 N = \{\, v \in V \mid \exists (V \setminus N) \;.\; \forall N \;.\; A \,\}
 \end{equation}
 
-This says, that there exists some assignments to all varaibles not in $N$
-such that $A$ is true for any values given to varibales in $N$,
+There exists some assignments to all varaibles not in $N$
+such that $A$ is true for any assignment to varibales in $N$,
 suggesting that variables in $N$ are underspecified.
-But makes no claim that $N$ is minimal.
-Note that the $MUS$ is the dual of the Minimal Satisfying Assignment, $MSA$,
-a minimal parital assignment of variables in $A$ such that $A$ is true.
+This is not $MUS$ as it makes no claim to $N$ being minimal.
+Note that the $MUS$ is the dual of  Minimal Satisfying Assignments, $MSA$,
+a minimal parital assignment of variables in $A$ such that $A$ is always true.
 
 \[
 MSA = (M, \sigma) . A
 \]
-where $(M, \sigma)$ is a partial assignemnt to $V$.
+where $(M, \sigma)$ is a partial assignemnt to $V$,
+$M$ is a model and $\sigma$ is a mapping from
+variables to the assigment.
 
 \subsubsection*{MHS}
 
-The Minimal Hitting Set ($MHS$) of a $A$
-is a the minimal subset of $V$ such that for each clause $A$, 
-some variable of that clause is in the $MHS$.
+A Minimal Hitting Set ($MHS$) of a $A$
+is a minimal subset of $V$ such that for each assertion, $a \in A$, 
+some variable of $a$ is in the $MHS$.
 
 \[
-MHS = \{ T \subset V \mid \forall a \in A \;. \; T \cap a \;.\; \not = \emptyset  \}	
+MHS = \{ T \subseteq V \mid \forall a \in A \;. \; T \cap a \;.\; \not = \emptyset  \}	
 \]
 
 We can generate an approximate $MHS$ for $A$ as follows;
@@ -183,16 +183,14 @@ def approx_MHS(AV, T={}):
  AV: List of sets of variables in each assertion in A
  T:  A potentially non-empty set of variables we think we want to include 
 """
-  T = T or {}
   for s in AV:
-    if not any(v in T for v in s):  # s not hit by T?
-	  v =  s[0]  # get first variable in s
-	  T = T.union(v)  
+    if not any(v in T for v in s):  # is s hit by T?
+	  T = T.union(s[0]) # add first variable in s 
   return T
 \end{python}
 
 We will say that an (approx) $MHS$ covers $A$ if 
-$V \setminus MHS$ is an $MUS$.
+$V \setminus MHS$ is an $MUS$ (the $MHS$ is an approx $MSA$).
 
 
 %==================================================
@@ -201,17 +199,18 @@ $V \setminus MHS$ is an $MUS$.
 
 Give a set $A$ of assertions, the algorithm to get an approximate MUS proceeds as follows:
 
-We search for a set of approx MSA
-by starting with an approximate MHS.
-This is the case, since given that we know each assertion in $A$ is true,
+We search for an approx MSA
+by starting with an approximate MHS~.
+This is a good starting point, 
+given the each assertion in $A$ is true,
 we know that our MSA must hit each assertion with
 at least one varaible. 
 
-Partial assignemnt to the the variables in the $MHS$ is usually not sufficient to
-ensure $A$ is true for all assignemnts to variables in $V \setminus MHS$
-and hence we to add variables to the $MHS$ until it is sufficient to cover the truth of $A$.
-This search proceeds as the following pseudocode:
-
+Partial assignemnt to the the variables in the $MHS$ 
+is usually not sufficient to ensure $A$ is true for all 
+assignemnts to variables in $V \setminus MHS$
+and hence we need to add variables to the $MHS$ until it covers $A$.
+This is described in the following pseudocode:
 
 \begin{python}
 def search(AV, V, A, its):
@@ -230,22 +229,24 @@ def search(AV, V, A, its):
   return msa_sets
 \end{python}
 
-To check whether an $V \setminus MHS$ is an $MUS$ (and hence $MHS$ is an $MSA$)
- we use the query in equation \ref{eq:mus}
+To check whether $V \setminus MHS$ is an $MUS$ (and hence $MHS$ is an $MSA$)
+ we use the query described in equation \ref{eq:mus}
 by calling to an SMT sovler (usually CVC5).
 We make this more efficient by storing previously tested candidates, $C$.
 Given some new $MUS$ query, $q$ there are three possibilities:
 \begin{enumerate}
-\item If $\exists c \in \{c \in C \mid \text{ismus}(c) \}  \mid q \subseteq c$ then $q$ is also underspecified
-\item If $\exists c \in \{c \in C \mid \neg \text{ismus}(c) \}  \mid c \subseteq q$ then $q$ is not underspecified
-\item Otherwise; test using CVC5 and store in $C$ as mus or not
+\item If $\exists c \in \{c \in C \mid \text{ismus}(c) \}  \mid q \subseteq c$ 
+then $q$ is also $MUS$
+\item If $\exists c \in \{c \in C \mid \neg \text{ismus}(c) \}  \mid c \subseteq q$ 
+then $q$ is not an $MUS$
+\item Otherwise; test using CVC5 and store in $C$ as appropriate
 \end{enumerate}
 
 If the $MHS$ is not an $MSA$ we introduce more variables from $V$ until
 it covers $A$.
 To be more targetted with how we add variables, 
 we attempt to extract an unsat core from our $MUS$ query, $q$,
-and add these varaibles to the $MHS$.
+and add those varaibles to the $MHS$.
 However, querying with quantifiers stops us being able to automatically extracting this from CVC5.
 Instead we overapproximate the unsat core by checking for each assertion in $A$,
 if the relavent variables in $q$ are not underspecified.
@@ -264,22 +265,21 @@ This is used in \pythoninline{ascend_to_boundary} to get an approximate $MSA$:
 
 \begin{python} 
 def ascend_to_boundary(MSA, V, A):
-  unsat_vars = approx_unsatcore(V/MSA)
-  return MSA/unsat_vars
+  specified_vars = approx_unsatcore(V/MSA)
+  return MSA.union(specified_vars)
 \end{python}
-
-\orangebox{Need to check whether removing every \pythoninline{unsat_var} defintely provides a valid MSA?}
 
 The final idea is to use the \verb|unsat_vars| to guide the generation 
 of the next $MHS$ that we propose as a candidate $MSA$.
 We know that this set of variables need to be specified
-for some given set of candiadte. 
+for some subset of the assertions.
 However, this is an overapproximation of the variables as there may be redundency between them,
-given that we check an assertion at a time not the whole set $A$ together.
+given that we check an assertion at a time not the whole set $A$ together,
+and that these variables were unsat given the specific $MHS$.
 
 Doing so may arise in scenarios where our $MHS$ is an $MSA$, 
-including reduendant variables.
-For this we can (optional) \pythoninline{descend_to_boundary};
+including redundant variables.
+For this we can, optionally, \pythoninline{descend_to_boundary};
 where we greedily remove each variable until we reach the boundary where 
 the candidate is no longer an $MSA$.
 
@@ -295,12 +295,105 @@ def descend_to_boundary(q, V, A):
 
 \subsection*{More traces}
 
+When we find a valid $MUS$ we 
+get a subset, $N$, of $V$ that is underspecified,
+but we also get an assignment for $V \setminus N$ 
+that models the hardware, given $A$.
+The idea is to use this assignment and 
+test if it is a positive or negative trace;
+\begin{enumerate}
+\item If it is positive, add it to the positive traces and continue
+\item If it is negative, add it to the negative traces and re-run the block with the same
+variable set, $\hat{V}$, given this new negative trace.
+\end{enumerate}
+This should further ensure we are generating good asseritons, 
+increasing mutation detection.
+
 
 \section*{Engineering}
 
 This method works but is compute heavy for large $A$.
 This is due to the SMT query and the large search space when ascending/descending.
-Thus to effectively integrate this into SMART++
+Thus to effectively integrate this into SMART++ we can use the following structure;
 
+\begin{enumerate}
+\item Generate assertions for all variables in $V$
+  \begin{itemize}
+  \item Split $V$ into $n$ independent sets, each sent to a block
+  \item This returns an independent set of assertions $A_i$
+  \item For each $A_i$ we generate $mus_i$
+  \item After $n$ blocks we generate $MUS$ from $\bigcup_{i=1}^n mus_i$
+  \end{itemize}
+\item Given all variables are covered in $\bigcup_{i=1}^n A_i$
+  \begin{itemize}
+  \item Split $MUS$ into $n$ independent sets, each sent to a block
+  \item continue as above
+  \end{itemize}
+\end{enumerate}
+
+This improves the efficiency of $MUS$ calculation as we can run it 
+on subsets of $A$. 
+And we are still able to capture variables dependecies through
+iterative $MUS$ generation and refinement.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}[
+  node distance=1.5cm and 2.5cm,
+  every node/.style={draw, circle, minimum size=0.8cm},
+  every edge quotes/.style={draw=none, fill=none, font=\small}
+]
+  % First column
+  \node (V) at (0,0) {$V$};
+  
+  % Second column
+  \node (V1) at (2.1,2) {$V_1$};
+  \node (V2) at (2.1,0) {$V_2$};
+  \node (V3) at (2.1,-2) {$V_3$};
+  
+  % Third column
+  \node (A1) at (3.6,2) {$A_1$};
+  \node (A2) at (3.6,0) {$A_2$};
+  \node (A3) at (3.6,-2) {$A_3$};
+  
+  % Fourth column
+  \node (mus1) at (5.4,2) {$mus_1$};
+  \node (mus2) at (5.4,0) {$mus_2$};
+  \node (mus3) at (5.4,-2) {$mus_3$};
+  
+  % Fifth column
+  \node (MUS) at (7.2,0) {$MUS$};
+  
+  % Sixth column
+  \node (V1p) at (9.3,2) {$V'_1$};
+  \node (V2p) at (9.3,0) {$V'_2$};
+  \node (V3p) at (9.3,-2) {$V'_3$};
+  
+  % Seventh column
+  \node (A1p) at (10.8,2) {$A'_1$};
+  \node (A2p) at (10.8,0) {$A'_2$};
+  \node (A3p) at (10.8,-2) {$A'_3$};
+  
+  % Eighth column
+  \node (mus1p) at (12.6,2) {$mus'_1$};
+  \node (mus2p) at (12.6,0) {$mus'_2$};
+  \node (mus3p) at (12.6,-2) {$mus'_3$};
+  
+  % Ninth column
+  \node (MUSp) at (14.4,0) {$MUS'$};
+  
+  % Arrows
+  \foreach \i in {1,2,3} {
+  \draw[->] (V) -- node[midway, draw=none, fill=white] {\tiny block} (V\i);
+  \draw[->] (V\i) -- (A\i);
+  \draw[->] (A\i) -- (mus\i);
+  \draw[->] (mus\i) -- (MUS);
+  \draw[->] (MUS) -- node[midway, draw=none, fill=white] {\tiny block} (V\i p);
+  \draw[->] (V\i p) -- (A\i p);
+  \draw[->] (A\i p) -- (mus\i p);
+  \draw[->] (mus\i p) -- (MUSp);
+  }
+\end{tikzpicture}
+\end{figure}
 
 \end{document}
