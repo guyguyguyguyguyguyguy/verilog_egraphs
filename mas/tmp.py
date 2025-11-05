@@ -20,7 +20,7 @@ def get_mus(v_file, a_file):
     amus = all_vars_inq - best_msa
     best_msa = set(map(str, best_msa))
 
-    return variables - best_msa, best_msa, vars_per_assertion, amus
+    return query, variables - best_msa, best_msa, all_vars_inq, amus
 
 def search_msas(query, vars_per_assertion, all_vars, its=5):
     mhs = approx_mhs(vars_per_assertion)
@@ -55,26 +55,28 @@ def approx_mhs(vars_per_assertion,*, T=set()):
         uncovered = {x for x in uncovered if nv not in x} 
     return T
 
-def is_mus(cand, query, track=True):
+def is_mus(cand, query):
     global seen_mus, seen_notmus
-    if track:
-        if any(cand.issubset(m) for m in seen_mus): 
-            return True
-        if any(c.issubset(n) for n in seen_notmus):
-            return False
+
+    if any(cand.issubset(m) for m in seen_mus): 
+        return True
+    if any(n.issubset(cand) for n in seen_notmus):
+        return False
 
     if get_model(ForAll(cand, query), solver_name='cvc5') is not None:
         seen_mus = {m for m in seen_mus if not m.issubset(cand)}
-        seen_mus.add(cand)
+        seen_mus.add(frozenset(cand))
         return True
     else:
         sat_notmus = {n for n in seen_notmus if not cand.issubset(n)}
-        sat_notmus.add(cand)
+        sat_notmus.add(frozenset(cand))
         return False
 
 def ascend_to_boundary(mhs ,vars_per_assertion, all_vars, query):
     specified_vars = approx_unsatcore(all_vars - mhs, vars_per_assertion,  query)
-    return mhs.union(specified_vars)
+    msa = mhs.union(specified_vars)
+    assert is_mus(msa, query)
+    return msa
 
 # will be a way to do this incrementally
 def approx_unsatcore(cmus, vpa, query):
