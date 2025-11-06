@@ -178,17 +178,16 @@ MHS = \{ T \subseteq V \mid \forall a \in A \;. \; T \cap a \;.\; \not = \emptys
 We can generate an approximate $MHS$ for $A$ as follows;
 
 \begin{python}
-def approx_MHS(AV, V, T={}): 
+def approx_MHS(AV, T={}): 
 """
  AV: List of sets of variables in each assertion in A
  T:  A potentially non-empty set of variables we think we want to include 
 """
-  uncovered = V
-  sorted_vars = vars_by_count(AV) 
-  while is_uncovered(AV):
-    next_v = sorted_vars.pop(0)
-    T.add(next_v)
-    uncovered = {x for x in uncovered if next_v not in x}
+  uncovered = {a for a in AV if not a & T}
+  while uncovered:
+    mv = most_freq_var(uncovered) 
+    T.add(mv)
+    uncovered = {x for x in uncovered if mv not in x}
   return T
 \end{python}
 
@@ -217,19 +216,18 @@ This is described in the following pseudocode:
 
 \begin{python}
 def search(AV, V, A, its):
-  mhss = [approx_MHS(AV)]
-  msa_sets = []
+  mhs = approx_MHS(AV)
+  msas = []
   for _ in range(its):
-    mhs = mhss.pop()
     if is_mus(V/mhs, A): 
 	  # Optional: decend_to_boundary(mhs, V, A)
-      msa_sets.append(mhs)
+      msas.append(mhs)
     else:
-      msa = ascend_to_boundary(mhs, V, A)
-      msa_sets.append(msa)
+      msa = ascend_to_boundary(mhs, A, AV)
+      msas.append(msa)
       # initialise new mhs by starting with unsatisfiable vars from previous candidate
-      mhss.append(approx_mhs(AV, mhs-msa))
-  return msa_sets
+      mhs = approx_mhs(AV, msa-mhs)
+  return msas
 \end{python}
 
 To check whether $V \setminus MHS$ is an $MUS$ (and hence $MHS$ is an $MSA$)
@@ -255,22 +253,21 @@ Instead we overapproximate the unsat core by checking for each assertion in $A$,
 if the relavent variables in $q$ are not underspecified.
 
 \begin{python}
-def approx_unsatcore(q, A):  # q is a set of, potentially MUS,  variables
+def approx_unsatcore(q, A, AV):  # q is a set of, potentially MUS,  variables
   specified = {}
-  for a in A:
-    q_p = {v for v in a if a in q}
-    if q_p.issubet(specified):
-      continue
-    if not is_mus(q_p, a):
-      specified = specified.union(q_p)
+  for vs, a in zip(AV, A):
+    q_p = vs.intersection(q - specified)
+    if q_p:
+      if not is_mus(q_p, a):
+        specified.update(q_p)
   return specified
 \end{python}
 
 This is used in \pythoninline{ascend_to_boundary} to get an approximate $MSA$:
 
 \begin{python} 
-def ascend_to_boundary(MSA, V, A):
-  specified_vars = approx_unsatcore(V/MSA)
+def ascend_to_boundary(MSA, A, AV):
+  specified_vars = approx_unsatcore(V/MSA, A, AV)
   return MSA.union(specified_vars)
 \end{python}
 
@@ -294,6 +291,20 @@ def descend_to_boundary(q, V, A):
     q_p = q/{v}
     if not is_mus(V/q_p, A)
       return q
+\end{python}
+
+The code then to get the best approximation of MUS is then:
+\begin{python}
+def get_mus(variables, assertions, its):
+  vars_per_assertion = get_vpa(assertions)
+  rel_vars = get_present_vars(assertions)
+  msas = search(vars_per_assertion, rel_vars, assertions, its)
+  best_msa = min(msas, key=len)
+
+  rel_mus = rel_vars - best_msa
+  mus = varaibles - best_msa
+
+  return mus, rel_mus
 
 \end{python}
 
