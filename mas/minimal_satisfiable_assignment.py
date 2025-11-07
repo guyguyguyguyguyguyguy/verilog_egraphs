@@ -10,6 +10,7 @@ seen_notmus = []
 solver = Solver()
 solver.setOption("produce-proofs", "true") 
 solver.setOption("produce-models", "true") 
+solver.setOption("proof-format-mode", "dot")
 
 def get_mus(v_file, a_file):
     assertions, all_vars_inq, vars_per_assertion = get_assertions(a_file)   
@@ -22,7 +23,7 @@ def get_mus(v_file, a_file):
 
     return variables - best_msa, best_msa,amus
 
-def search_msas(assertions, vars_per_assertion, all_vars, its=5):
+def search_msas(assertions, vars_per_assertion, all_vars, its=2):
     mhs = approx_mhs(vars_per_assertion)
     msas = []
     for  _ in range(its):
@@ -33,7 +34,7 @@ def search_msas(assertions, vars_per_assertion, all_vars, its=5):
                 msas.append(mhs)
             case [False, proof]:
                 print('before: ', len(mhs))
-                msa = ascend_to_boundary(mhs, vars_per_assertion,  all_vars, assertions, proof)
+                msa = ascend_to_boundary(mhs, all_vars, assertions, proof)
                 print('after: ', len(msa))
                 msas.append(msa)
                 include = (msa - mhs)
@@ -60,9 +61,9 @@ def is_mus(cand, assertions):
     global seen_mus, seen_notmus
 
     if any(cand.issubset(m) for m in seen_mus): 
-        return True
+        return True, None
     if any(n.issubset(cand) for n in seen_notmus):
-        return False
+        return False, None
 
     solver.push()
     phi = ForAll(list(cand), assertions)
@@ -79,25 +80,24 @@ def is_mus(cand, assertions):
         solver.pop()
         return False, proof
 
-def ascend_to_boundary(mhs ,vars_per_assertion, all_vars, assertions, proof):
-    specified_vars = witnesses(all_vars - mhs, vars_per_assertion, assertions, proof)
+def ascend_to_boundary(mhs ,all_vars, assertions, proof):
+    specified_vars = witnesses(all_vars - mhs, assertions, proof)
     msa = mhs.union(specified_vars)
-    assert is_mus(msa, assertions)
+    while not (ret := is_mus(msa, assertions))[0]:
+        msa.update(witnesses(all_vars - msa, assertions, ret[1]))
+    assert is_mus(msa, assertions)[0]
     return msa
 
-def witnesses(cand, vpa, assertions, proof):
-    a_vars, b_vars = get_contra_vars(proof, cand, assertions)
-    A, B = set(), set()
-    for a, b in zip(a_vars, b_vars):
-        A.add(a)
-        cand_p = cand - A
-        if is_sat_forall(cand_p, assertions):
-            return cand - cand_p
-        B.add(b)
-        cand_p = cand - B
-        if is_sat_forall(cand_p, assertions):
-            return cand - cand_p
-    return set()
+def witnesses(cand, assertions, proof):
+    vvars = handle_rules(cand, proof, assertions.children())
+    var_sets = [set() for _ in vvars]
+    for vvs in zip(*vvars):
+        for i, vs in enumerate(var_sets):
+            vs.add(vvs[i])
+            cand_p = cand - vs
+            if is_sat_forall(cand_p, assertions):
+                return cand - cand_p
+    return {x for y in vvars for x in y}
 
 def get_assertions(file):
     func_pat = re.compile(r"(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)")
@@ -198,24 +198,43 @@ def parse_body_to_cvc5(body: str, *, env, bv_widths=None):
     ast = _parse(tokens)
     return _eval(ast, env, bv_widths or {})
 
-def get_contradictions(p):
-    out = []
-    stack = [p]
-    while stack:
-        node = stack.pop()
-        if node.getRule().name == "CONTRA":
-            out.append(node)
-        stack.extend(node.getChildren())
-    return out
+def rel_rule(p):
+    c ,= p.getChildren()
+    while c.getRule().name not in ["CONTRA", "EQ_RESOLVE"]:
+        c ,= c.getChildren()
 
-def get_contra_vars(p, cand, assertions):
-    cons = get_contradictions(p)
-    ass = assertions.children()
-    con ,= cons
+    return c, c.getRule().name
+
+def handle_rules(cand, p, assertions):
+    match rel_rule(p):
+        case (c, "CONTRA"):
+            return get_contra_vars(cand, c, assertions)
+        case (c, "EQ_RESOLVE"):
+            return get_eqres_vars(cand, c, assertions)
+        case _: 
+            raise NotImplementedError("Need to add more")
+
+def get_contra_vars(cand, con, assertions):
     r_vars = []
     c1, c2 =  con.getChildren()
     c1idx, c2idx = c1.getArguments()[0].as_long(), c2.getArguments()[0].as_long()
-    ra = [ass[c1idx], ass[c2idx]]
+    ra = [assertions[c1idx], assertions[c2idx]]
+    for a in ra:
+        vs = set()
+        vs = free_variables(a)
+        r_vars.append(cand & vs)
+    return r_vars
+
+# TODO: This does not work!!!!!
+def get_eqres_vars(cand, eqr, assertions):
+    c ,= [c for c in eqr.getChildren() if c.getRule().name != 'ASSUME']
+    rhs = c
+    while (ch := rhs.getChildren()):
+        rhs = ch[-1]
+
+    idxs = [i for i, x in enumerate(rhs.getArguments()[0].children()[0].children()) if is_false(x)]
+    ra = [assertions[idx] for idx in idxs]
+    r_vars = []
     for a in ra:
         vs = set()
         vs = free_variables(a)
@@ -246,7 +265,4 @@ def get_variables(file):
     return variables
 
 
-get_mus("../Variables/c17.txt", '../Sygus/c17.sl')
-
-
-
+get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')
