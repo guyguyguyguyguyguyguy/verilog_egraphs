@@ -38,6 +38,9 @@ def get_mus(v_file, a_file):
         mus.update(amus)
         assignments.update(ass)
 
+    print("MUS len: ", len(mus))
+    print("MSA len: ", len(msa))
+
     return variables - msa, assignments
 
 def search_msa(assertions, vars_per_assertion, all_vars):
@@ -110,4 +113,12 @@ def minimal_witnesses(msa, pas):
     return approx_mhs(rvs)
 
 
-un, ass = get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) == 2:
+        b = sys.argv[1]
+        vf = f"../Variables/{b}.txt"
+        sf = f"../Sygus/{b}.sl"
+        un, ass = get_mus(vf, sf)
+    else:
+        un, ass = get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')
