@@ -13,43 +13,40 @@ solver.set("produce-unsat-cores", "true")
 solver.set("minimal-unsat-cores", "true")
 
 def get_mus(v_file, a_file):
-    iassertions, iall_vars_inq, ivars_per_assertion, lone_assertions = get_assertions(a_file)   
+    iassertions, iall_vars_inq, ivars_per_assertion = get_assertions(a_file)   
     variables = get_variables(v_file)
 
     msa = set()
     mus = set()
+    assignments = {}
     for assertions, all_vars_inq, vars_per_assertion in zip(iassertions, iall_vars_inq, ivars_per_assertion):
-        msas = search_msas(assertions, vars_per_assertion, all_vars_inq)
-        best_msa = min(msas, key=len)
-        amus = all_vars_inq - best_msa
-        best_msa = set(map(str, best_msa))
+        if len(vars_per_assertion) == 1 and len(vars_per_assertion[0]) == 1:
+            n = all_vars_inq
+            best_msa = set(map(str, n))
+            amus = set()
+
+            s = Solver()
+            s.add(assertions)
+            s.check()
+            ass = {str(d): s.model()[d] for d in s.model().decls()}
+        else:
+            n, ass = search_msa(assertions, vars_per_assertion, all_vars_inq)
+            amus = all_vars_inq - n
+            best_msa = set(map(str, n))
 
         msa.update(best_msa)
         mus.update(amus)
+        assignments.update(ass)
 
-    for la in lone_assertions:
-        a ,= la
-        fv = free_variables(a)
-        best_msa = set(map(str, fv))
-        msa.update(best_msa)
+    return variables - msa, assignments
 
-    return variables, variables - msa, msa, mus
-
-def search_msas(assertions, vars_per_assertion, all_vars, its=1):
+def search_msa(assertions, vars_per_assertion, all_vars):
     mhs = approx_mhs(vars_per_assertion)
-    msas = []
-    for  _ in range(its):
-        match is_mus(all_vars - mhs, assertions):
-            case [True, _]: 
-                msas.append(mhs)
-            case [False, proof]:
-                print('before: ', len(mhs))
-                msa = ascend_to_boundary(mhs, all_vars, assertions, proof)
-                print('after: ', len(msa))
-                msas.append(msa)
-                include = (msa - mhs)
-                mhs = approx_mhs(vars_per_assertion, T=include)
-    return msas
+    match is_mus(all_vars - mhs, assertions):
+        case [True, model]: 
+            return mhs, model
+        case [False, ucore]:
+            return ascend_to_boundary(mhs, all_vars, assertions, ucore)
 
 def most_frequent_var(vars_per_assertion):
     counter = defaultdict(int)
@@ -86,8 +83,11 @@ def is_mus(cand, assertions):
     if solver.check(tags) == sat:
         seen_mus = {m for m in seen_mus if not m.issubset(cand)}
         seen_mus.add(frozenset(cand))
+        model = solver.model()
+        rds = [d for d in model.decls() if str(d)[0] != "@"]
+        assignments = {str(d): model[d] for d in rds}
         solver.pop()
-        return True, None
+        return True, assignments
     else:
         seen_notmus = {n for n in seen_notmus if not cand.issubset(n)}
         seen_notmus.add(frozenset(cand))
@@ -96,16 +96,13 @@ def is_mus(cand, assertions):
         solver.pop()
         return False, pas
 
-
 def ascend_to_boundary(mhs ,all_vars, assertions, pas):
     minimal_vars = minimal_witnesses(mhs, pas)
     msa = mhs.union(minimal_vars)
     while not (ret := is_mus(all_vars - msa, assertions))[0]:
         w = minimal_witnesses(msa, ret[1])
         msa.update(w)
-        print("Size of msa is: ", len(msa))
-    assert is_mus(all_vars - msa, assertions)[0]
-    return msa
+    return msa, ret[1]
 
 def minimal_witnesses(msa, pas):
     d = DisjointSets(pas)
@@ -113,4 +110,4 @@ def minimal_witnesses(msa, pas):
     return approx_mhs(rvs)
 
 
-v, un, n, m = get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')
+un, ass = get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')

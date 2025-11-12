@@ -22,12 +22,10 @@ def get_assertions(file):
                 assertions.add(parse_body_to_cvc5(expr, env=env))
 
     indp_assertions = DisjointSets(assertions).assertion_ind_subsets()
-    indp_assertions, lone_assertions = partition(lambda x: len(x) == 1, indp_assertions)
-    indp_assertions = list(indp_assertions)
-    iassertions = [And(*ias) for ias in indp_assertions]
+    iassertions = [And(*ias) if len(ias) > 1 else And(*ias, *ias) for ias in indp_assertions]
     ifree_vars = [frozenset(free_variables(ias)) for ias in iassertions]
     ivar_per_ass = [[frozenset(free_variables(a)) for a in ias] for ias in indp_assertions]
-    return iassertions, ifree_vars, ivar_per_ass, lone_assertions
+    return iassertions, ifree_vars, ivar_per_ass
 
 def _tok(s: str):
     s = s.replace('(', ' ( ').replace(')', ' ) ')
