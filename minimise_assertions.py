@@ -9,6 +9,8 @@ func_pat = re.compile(r'(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)')
 var_pat = re.compile(r'\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)')
 
 
+# TODO: Look at prime implicant!!!
+
 class PowerLattice:
     def __init__(self, funs):
         self.decls = {}
@@ -157,27 +159,27 @@ def run_minimisation(in_file, out_file, partition_size=None, ret=False):
         return (len(unique_funs[0]), len(min_core))
 
 
-if __name__ == '__main__':
-    import sys
-
-    defaults = ["Sygus/s1238.sl", "tmp", None]
-    args = sys.argv[1:] + defaults[len(sys.argv)-1:]  # pad with defaults
-
-    match sys.argv:
-        case [_]: 
-            file, out_file, partition_size = defaults
-        case [_, f]: 
-            file, out_file, partition_size = f, *defaults[1:]
-        case [_, f, o]: 
-            file, out_file, partition_size = f, o, defaults[2]
-        case [_, f, o, p]: 
-            file, out_file, partition_size = f, o, p
-        case _: 
-            raise Exception("Too many arguments")
-
-
-    print("================== file =================")
-    start = time.time()
-    run_minimisation(file, out_file, partition_size)
-    print(time.time() - start)
-    print()
+# if __name__ == '__main__':
+#     import sys
+    
+#     defaults = ["Sygus/s1238.sl", "tmp", None]
+#     args = sys.argv[1:] + defaults[len(sys.argv)-1:]  # pad with defaults
+    
+#     match sys.argv:
+#         case [_]: 
+#             file, out_file, partition_size = defaults
+#         case [_, f]: 
+#             file, out_file, partition_size = f, *defaults[1:]
+#         case [_, f, o]: 
+#             file, out_file, partition_size = f, o, defaults[2]
+#         case [_, f, o, p]: 
+#             file, out_file, partition_size = f, o, p
+#         case _: 
+#             raise Exception("Too many arguments")
+    
+    
+#     print("================== file =================")
+#     start = time.time()
+#     run_minimisation(file, out_file, partition_size)
+#     print(time.time() - start)
+#     print()
