@@ -28,7 +28,7 @@ def get_mus(v_file, a_file):
             s = Solver()
             s.add(assertions)
             s.check()
-            ass = {str(d): s.model()[d] for d in s.model().decls()}
+            ass = {str(d): s.model()[d].as_ast().toPythonObj() for d in s.model().decls()}
         else:
             n, ass = search_msa(assertions, vars_per_assertion, all_vars_inq)
             amus = all_vars_inq - n
@@ -36,10 +36,8 @@ def get_mus(v_file, a_file):
 
         msa.update(best_msa)
         mus.update(amus)
-        assignments.update(ass)
-
-    print("MUS len: ", len(mus))
-    print("MSA len: ", len(msa))
+        if ass:
+            assignments.update(ass)
 
     return variables - msa, assignments
 
@@ -88,7 +86,7 @@ def is_mus(cand, assertions):
         seen_mus.add(frozenset(cand))
         model = solver.model()
         rds = [d for d in model.decls() if str(d)[0] != "@"]
-        assignments = {str(d): model[d] for d in rds}
+        assignments = {str(d): model[d].as_ast().toPythonObj() for d in rds}
         solver.pop()
         return True, assignments
     else:
@@ -121,4 +119,4 @@ if __name__ == "__main__":
         sf = f"../Sygus/{b}.sl"
         un, ass = get_mus(vf, sf)
     else:
-        un, ass = get_mus("../Variables/s1238.txt", '../Sygus/s1238.sl')
+        un, ass = get_mus("../Variables/c1355.txt", "../Sygus/c1355.sl")

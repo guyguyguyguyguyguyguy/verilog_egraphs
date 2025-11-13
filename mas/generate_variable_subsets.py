@@ -1,14 +1,17 @@
 import random
+import json
 
-from minimal_satisfiable_assignment import run_get_mas
+from minimal_satisfiable_assignment import get_mus
 
 
 def generate_variable_subsets(n, k):
-    underspecified = sorted(run_get_mas())
+    underspecified, model = get_mus("../variables.txt", "../SygusResult.sl")
 
     for i in range(n):
-        variable_set = random.sample(underspecified, k)
+        variable_set = random.sample(sorted(underspecified), k)
         with open(f"variable_set_{i}", 'w') as f:
            f.write('\n'.join(variable_set))
+    with open('model.json', 'w') as f:
+        json.dump(model, f)
 
 generate_variable_subsets(5, 4)
