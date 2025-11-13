@@ -7,7 +7,7 @@ Found in "minimise_assertions.py"
  - This uses a greedy lattice based approad 
 
 
-#### Maximal universal subset (MUST)
+#### Maximal universal subset (MUS)
 
-Found in "maxmimal_universal_subset.py"
- - Given a set of assertions, the set is looped over and at each iteration it returns the variables in the assertions that can be univeraslly quantified (are under-specified)
+Found in "minimal_satisfiable_assignment.py"
+ - Using the Minimal Hitting Set (MHS) as an approximation of the Minimal Satisfiable Assingment (MSA), the algorithm iteratively refines thiapproximation until an MSA is found. The MSA is then used to generate a Minimal Universal Subset that captures underspecified variables in the assertion set.
