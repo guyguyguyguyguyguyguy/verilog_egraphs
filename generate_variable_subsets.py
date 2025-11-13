@@ -4,8 +4,8 @@ import json
 from minimal_satisfiable_assignment import get_mus
 
 
-def generate_variable_subsets(n, k):
-    underspecified, model = get_mus("../variables.txt", "../SygusResult.sl")
+def generate_variable_subsets(n, k, timeout):
+    underspecified, model = get_mus("variables.txt", "SygusResult.sl", timeout)
 
     for i in range(n):
         variable_set = random.sample(sorted(underspecified), k)
@@ -14,4 +14,4 @@ def generate_variable_subsets(n, k):
     with open('model.json', 'w') as f:
         json.dump(model, f)
 
-generate_variable_subsets(5, 4)
+generate_variable_subsets(5, 4, 0.000001)

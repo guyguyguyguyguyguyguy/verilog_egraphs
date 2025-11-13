@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 from cvc5.pythonic import *
 
@@ -12,7 +13,10 @@ solver.setOption("produce-models", "true")
 solver.set("produce-unsat-cores", "true")
 solver.set("minimal-unsat-cores", "true")
 
-def get_mus(v_file, a_file):
+def get_mus(v_file, a_file, timeout):
+    global seen_mus, seen_notmus
+    seen_mus, seen_notmus = [], []
+
     iassertions, iall_vars_inq, ivars_per_assertion = get_assertions(a_file)   
     variables = get_variables(v_file)
 
@@ -30,7 +34,7 @@ def get_mus(v_file, a_file):
             s.check()
             ass = {str(d): s.model()[d].as_ast().toPythonObj() for d in s.model().decls()}
         else:
-            n, ass = search_msa(assertions, vars_per_assertion, all_vars_inq)
+            n, ass = search_msa(assertions, vars_per_assertion, all_vars_inq, timeout)
             amus = all_vars_inq - n
             best_msa = set(map(str, n))
 
@@ -41,13 +45,13 @@ def get_mus(v_file, a_file):
 
     return variables - msa, assignments
 
-def search_msa(assertions, vars_per_assertion, all_vars):
+def search_msa(assertions, vars_per_assertion, all_vars, timeout):
     mhs = approx_mhs(vars_per_assertion)
     match is_mus(all_vars - mhs, assertions):
         case [True, model]: 
             return mhs, model
         case [False, ucore]:
-            return ascend_to_boundary(mhs, all_vars, assertions, ucore)
+            return ascend_to_boundary(mhs, all_vars, assertions, ucore, timeout)
 
 def most_frequent_var(vars_per_assertion):
     counter = defaultdict(int)
@@ -97,10 +101,13 @@ def is_mus(cand, assertions):
         solver.pop()
         return False, pas
 
-def ascend_to_boundary(mhs ,all_vars, assertions, pas):
+def ascend_to_boundary(mhs ,all_vars, assertions, pas, timeout):
+    start = time.time()
     minimal_vars = minimal_witnesses(mhs, pas)
     msa = mhs.union(minimal_vars)
     while not (ret := is_mus(all_vars - msa, assertions))[0]:
+        if time.time() - start >= timeout:
+            return msa, {}
         w = minimal_witnesses(msa, ret[1])
         msa.update(w)
     return msa, ret[1]
