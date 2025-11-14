@@ -102,49 +102,6 @@ def parse_body_to_cvc5(body: str, *, env, bv_widths=None):
     ast = _parse(tokens)
     return _eval(ast, env, bv_widths or {})
 
-def rel_rule(p):
-    c ,= p.getChildren()
-    while c.getRule().name not in ["CONTRA", "EQ_RESOLVE"]:
-        c ,= c.getChildren()
-
-    return c, c.getRule().name
-
-def handle_rules(cand, p, assertions):
-    match rel_rule(p):
-        case (c, "CONTRA"):
-            return get_contra_vars(cand, c, assertions)
-        case (c, "EQ_RESOLVE"):
-            return get_eqres_vars(cand, c, assertions)
-        case _: 
-            raise NotImplementedError("Need to add more")
-
-def get_contra_vars(cand, con, assertions):
-    r_vars = []
-    c1, c2 =  con.getChildren()
-    cidxs = [a.as_long() for a in chain(c1.getArguments(), c2.getArguments()) if isinstance(a, IntNumRef)]
-    ra = [assertions[idx] for idx in cidxs]
-    for a in ra:
-        vs = set()
-        vs = free_variables(a)
-        r_vars.append(cand & vs)
-    return r_vars
-
-# TODO: This does not work!!!!!
-def get_eqres_vars(cand, eqr, assertions):
-    c = [c for c in eqr.getChildren() if c.getRule().name != 'ASSUME'][-1]
-    rhs = c
-    while (ch := rhs.getChildren()):
-        rhs = ch[-1]
-
-    idxs = [i for i, x in enumerate(rhs.getArguments()[0].children()[0].children()) if is_false(x)]
-    ra = [assertions[idx] for idx in idxs]
-    r_vars = []
-    for a in ra:
-        vs = set()
-        vs = free_variables(a)
-        r_vars.append(cand & vs)
-    return r_vars
-
 def free_variables(a):
     vs = set()
     stack = [a]
