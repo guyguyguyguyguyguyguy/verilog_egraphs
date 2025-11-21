@@ -115,7 +115,8 @@ def minimise(assertions, timeout):
     for p in assertions:
         p = set(p.children())
         if len(p) == 1:
-            min_core.append(str(p))
+            ass ,= p
+            min_core.append(str(ass))
             continue
 
         pl = PowerLattice(p, timeout)
