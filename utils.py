@@ -27,6 +27,29 @@ def get_assertions(file):
     ivar_per_ass = [[frozenset(free_variables(a)) for a in ias] for ias in indp_assertions]
     return iassertions, ifree_vars, ivar_per_ass
 
+def get_assertions_mini(file):
+    func_pat = re.compile(r"(?:Bool|\(_\s+BitVec\s+\d+\))\s+(.*)\)")
+    var_pat = re.compile(r"\((\w+)\s+(?:(Bool)|\(_\s+(BitVec)\s+(\d+)\))\)")
+
+    assertions = set()
+    deffuns = {}
+    env = {}
+
+    with open(file, 'r') as f:
+        for l in f.readlines():
+            if (body := func_pat.search(l)) is not None:
+                expr = body.group(1)
+                for m in var_pat.findall(l):
+                    match m:
+                        case [n, "", _, w]:  env[n] = BitVec(n, int(w))
+                        case [n, _, "", ""]: env[n] = Bool(n)
+                deffuns[expr] = l
+                assertions.add(parse_body_to_cvc5(expr, env=env))
+
+    indp_assertions = DisjointSets(assertions).assertion_ind_subsets()
+    iassertions = [And(*ias) if len(ias) > 1 else And(*ias, *ias) for ias in indp_assertions]
+    return iassertions, deffuns
+
 def _tok(s: str):
     s = s.replace('(', ' ( ').replace(')', ' ) ')
     return [t for t in s.split() if t]

@@ -93,41 +93,28 @@ class PowerLattice:
         self.s.pop()
         return r == unsat
 
-
-def get_defined_funs(file):
-    with open(file, 'r') as f:
-        content = f.read()
-        matches = def_pat.findall(content)
-    return set(matches)
-
-def get_unique_funs(defined_funs):
-    pair = ([], [])
-
-    for df in defined_funs:
-        func = func_pat.search(df).group(1)
-        if func not in set(pair[1]):
-            pair[0].append(df)
-            pair[1].append(func)
-    return pair
-
 def minimise(assertions, timeout):
     min_core = []
     for p in assertions:
         p = set(p.children())
         if len(p) == 1:
             ass ,= p
-            min_core.append(str(ass))
+            min_core.append(ass.sexpr())
             continue
 
         pl = PowerLattice(p, timeout)
         sub_min_core = pl.minimise()
-        min_core.extend([str(x) for x in sub_min_core])
+        min_core.extend([x.sexpr() for x in sub_min_core])
         del pl
     return min_core
 
 def run_minimisation(in_file, out_file, timeout):
-    iassertions, _, _ = get_assertions(in_file)
+    iassertions, deffuns = get_assertions_mini(in_file)
     min_core = minimise(iassertions, timeout)
 
     with open(out_file, 'w') as f:
-        f.write("\n".join(min_core))
+        for mc in min_core:
+            df = f"\n{deffuns[mc]}"
+            f.write(df)
+
+    return min_core, deffuns
