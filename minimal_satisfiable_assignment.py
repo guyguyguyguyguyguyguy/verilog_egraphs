@@ -9,7 +9,7 @@ seen_mus = []
 seen_notmus = []
 
 solver = Solver()
-solver.setOption("produce-models", "true") 
+solver.set("produce-models", "true") 
 solver.set("produce-unsat-cores", "true")
 solver.set("minimal-unsat-cores", "true")
 
@@ -19,7 +19,7 @@ def get_mus(v_file, a_file, timeout):
 
     iassertions, iall_vars_inq, ivars_per_assertion = get_assertions(a_file)   
     variables = get_variables(v_file)
-
+    
     msa = set()
     mus = set()
     assignments = {}
@@ -71,8 +71,10 @@ def approx_mhs(vars_per_assertion, *, T=None):
     return T
 
 def is_mus(cand, assertions):
-    global seen_mus, seen_notmus
+    if not cand:
+        return True, {}
 
+    global seen_mus, seen_notmus
     if any(cand.issubset(m) for m in seen_mus): 
         return True, None
     if any(n.issubset(cand) for n in seen_notmus):
@@ -101,6 +103,7 @@ def is_mus(cand, assertions):
         solver.pop()
         return False, pas
 
+    
 def ascend_to_boundary(mhs ,all_vars, assertions, pas, timeout):
     start = time.time()
     minimal_vars = minimal_witnesses(mhs, pas)
@@ -119,11 +122,5 @@ def minimal_witnesses(msa, pas):
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) == 2:
-        b = sys.argv[1]
-        vf = f"../Variables/{b}.txt"
-        sf = f"../Sygus/{b}.sl"
-        un, ass = get_mus(vf, sf)
-    else:
-        un, ass = get_mus("../Variables/c1355.txt", "../Sygus/c1355.sl")
+    a, _ = get_mus("tmp.txt", "tmp.sl", 100)
+    print(len(a))
