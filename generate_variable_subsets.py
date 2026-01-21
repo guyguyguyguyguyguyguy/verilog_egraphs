@@ -4,7 +4,7 @@ import json
 from minimal_satisfiable_assignment import get_mus
 
 
-def generate_variable_subsets(n, k, timeout, jobs=1):
+def generate_variable_subsets(n, k, timeout):
     underspecified, model = get_mus("variables.txt", "SygusResult.sl", timeout)
 
     for i in range(n):

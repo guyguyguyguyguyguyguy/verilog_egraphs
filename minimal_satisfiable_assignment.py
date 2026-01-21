@@ -1,15 +1,17 @@
 import time
+import sys
+import os
 from collections import defaultdict
 from cvc5.pythonic import *
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "src", "python")))
 from utils import *
-
 
 seen_mus = []
 seen_notmus = []
 
 solver = Solver()
-solver.set("produce-models", "true") 
+solver.setOption("produce-models", "true")
 solver.set("produce-unsat-cores", "true")
 solver.set("minimal-unsat-cores", "true")
 
@@ -17,9 +19,9 @@ def get_mus(v_file, a_file, timeout):
     global seen_mus, seen_notmus
     seen_mus, seen_notmus = [], []
 
-    iassertions, iall_vars_inq, ivars_per_assertion = get_assertions(a_file)   
+    iassertions, iall_vars_inq, ivars_per_assertion = get_assertions(a_file)
     variables = get_variables(v_file)
-    
+
     msa = set()
     mus = set()
     assignments = {}
@@ -48,7 +50,7 @@ def get_mus(v_file, a_file, timeout):
 def search_msa(assertions, vars_per_assertion, all_vars, timeout):
     mhs = approx_mhs(vars_per_assertion)
     match is_mus(all_vars - mhs, assertions):
-        case [True, model]: 
+        case [True, model]:
             return mhs, model
         case [False, ucore]:
             return ascend_to_boundary(mhs, all_vars, assertions, ucore, timeout)
@@ -58,7 +60,7 @@ def most_frequent_var(vars_per_assertion):
     for s in vars_per_assertion:
         for v in s:
             counter[v] +=1
-    return max(counter, key=counter.get) 
+    return max(counter, key=counter.get)
 
 def approx_mhs(vars_per_assertion, *, T=None):
     T = T or set()
@@ -67,15 +69,15 @@ def approx_mhs(vars_per_assertion, *, T=None):
     while uncovered:
         nv = most_frequent_var(uncovered)
         T.add(nv)
-        uncovered = {x for x in uncovered if nv not in x} 
+        uncovered = {x for x in uncovered if nv not in x}
     return T
 
 def is_mus(cand, assertions):
-    if not cand:
-        return True, {}
-
     global seen_mus, seen_notmus
-    if any(cand.issubset(m) for m in seen_mus): 
+    if not cand:
+        return True, None
+
+    if any(cand.issubset(m) for m in seen_mus):
         return True, None
     if any(n.issubset(cand) for n in seen_notmus):
         return False, None
@@ -103,7 +105,6 @@ def is_mus(cand, assertions):
         solver.pop()
         return False, pas
 
-    
 def ascend_to_boundary(mhs ,all_vars, assertions, pas, timeout):
     start = time.time()
     minimal_vars = minimal_witnesses(mhs, pas)
@@ -121,6 +122,3 @@ def minimal_witnesses(msa, pas):
     return approx_mhs(rvs)
 
 
-if __name__ == "__main__":
-    a, _ = get_mus("tmp.txt", "tmp.sl", 100)
-    print(len(a))
